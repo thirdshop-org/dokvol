@@ -1,0 +1,43 @@
+# Binaries
+api/dokvol-api
+api/opencode-api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+api/vendor/
+*.test
+*.out
+api/coverage.out
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Bun (interface)
+node_modules/
+bun.lock
+bun.lockb
+dist/
+build/
+.svelte-kit/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
