@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"sync"
 )
 
 // **Abstraction par Symlink :** Implémenter la logique suivante :
@@ -19,7 +18,6 @@ import (
 type Application struct {
 	Name          string
 	DockerVolumes []VolumeDetail
-	mx            sync.Mutex
 }
 
 type ApplicationVolumeOptions struct {

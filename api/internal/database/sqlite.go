@@ -1,9 +1,8 @@
-package main
+package database
 
 import (
 	"context"
 	"database/sql"
-	"log"
 
 	"dokvol/api/internal/db"
 	"dokvol/api/system"
@@ -15,17 +14,17 @@ import (
 
 type Database struct {
 	conn    *sql.DB
-	queries *db.Queries
+	Queries *db.Queries
 }
 
-func InitDatabase() *Database {
+func Init() *Database {
 	conn, err := sql.Open("sqlite3", "./dokvol.db")
 	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
+		panic(err)
 	}
 
 	if err := conn.Ping(); err != nil {
-		log.Fatalf("failed to ping database: %v", err)
+		panic(err)
 	}
 
 	queries := db.New(conn)
@@ -34,20 +33,18 @@ func InitDatabase() *Database {
 	goose.SetDialect("sqlite3")
 
 	if err := goose.Up(conn, "migrations"); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		panic(err)
 	}
 
-	d := &Database{
+	return &Database{
 		conn:    conn,
-		queries: queries,
+		Queries: queries,
 	}
-
-	return d
 }
 
 func (d *Database) SaveDrives(ctx context.Context, drives []system.DriveInfo) error {
 	for _, dr := range drives {
-		_, err := d.queries.CreateDrive(ctx, db.CreateDriveParams{
+		_, err := d.Queries.CreateDrive(ctx, db.CreateDriveParams{
 			Device:     dr.Device,
 			Mountpoint: dr.Mountpoint,
 			Fstype:     dr.Fstype,
@@ -64,7 +61,7 @@ func (d *Database) SaveDrives(ctx context.Context, drives []system.DriveInfo) er
 
 func (d *Database) SaveVolumes(ctx context.Context, volumes []system.VolumeDetail) error {
 	for _, v := range volumes {
-		_, err := d.queries.CreateVolume(ctx, db.CreateVolumeParams{
+		_, err := d.Queries.CreateVolume(ctx, db.CreateVolumeParams{
 			ContainerName: v.ContainerName,
 			Type:          v.Type,
 			Source:        v.Source,

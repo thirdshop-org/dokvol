@@ -112,7 +112,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 		panic(err)
 	}
 
-	applications := make([]ApplicationVolumes, len(containers.Items))
+	applications := make([]ApplicationVolumes, 0, len(containers.Items))
 
 	for _, ctr := range containers.Items {
 
@@ -121,7 +121,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 			applicationName = ctr.Names[0]
 		}
 
-		volumesDetails := make([]VolumeDetail, len(ctr.Mounts))
+		volumesDetails := make([]VolumeDetail, 0, len(ctr.Mounts))
 
 		for _, mount := range ctr.Mounts {
 			// C'est ici que la magie de DokVol opère :
