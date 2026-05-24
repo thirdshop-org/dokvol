@@ -7,15 +7,19 @@ import (
 
 func main() {
 
-	system := system.New()
+	sys := system.New()
 
-	applications := system.GetApplicationsDetails()
+	for _, application := range sys.Applications {
 
-	for _, application := range applications {
-		groups := application.GroupVolumesBySystemDrives()
-		for _, group := range groups {
-			fmt.Println(group)
+		options := system.MoveStorageOptions{
+			DefaultDestinationDrive: &sys.Drives[0],
+			Application:             application,
 		}
+
+		err := sys.MoveApplicationStorage(options)
+
+		fmt.Println(err)
+
 	}
 
 	// fmt.Println(containers)

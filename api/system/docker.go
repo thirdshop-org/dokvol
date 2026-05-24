@@ -99,7 +99,7 @@ type ApplicationVolumes struct {
 	Volumes       []VolumeDetail
 }
 
-func (s *System) GetDockerVolumesByContainers() []ApplicationVolumes {
+func GetDockerVolumesByContainers() []ApplicationVolumes {
 
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
@@ -158,15 +158,13 @@ func (v *VolumeDetail) GetVolumeSize() error {
 	return nil
 }
 
-func (s *System) GetApplicationsDetails() []Application {
-
-	drives := s.GetDrives()
+func GetApplicationsDetails(drives []DriveInfo) []Application {
 
 	sort.Slice(drives, func(i, j int) bool {
 		return len(drives[i].Mountpoint) > len(drives[j].Mountpoint)
 	})
 
-	containers := s.GetDockerVolumesByContainers()
+	containers := GetDockerVolumesByContainers()
 
 	applications := make([]Application, len(containers))
 
@@ -199,6 +197,7 @@ func (s *System) GetApplicationsDetails() []Application {
 		}
 
 		applications[index].DockerVolumes = volumes
+		applications[index].Name = container.ContainerName
 
 	}
 

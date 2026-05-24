@@ -17,7 +17,7 @@ type DriveInfo struct {
 	UsedPct    float64 `json:"used_pct"`
 }
 
-func (s *System) GetDrives() []DriveInfo {
+func GetDrives() []DriveInfo {
 	var driveList []DriveInfo
 
 	// 1. On récupère toutes les partitions
