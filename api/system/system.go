@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/moby/moby/client"
 )
 
 const (
@@ -20,16 +22,25 @@ const (
 type System struct {
 	Drives       []DriveInfo
 	Applications []Application
+	docker       *client.Client // client Docker
 }
 
-func New() System {
+func New() (*System, error) {
+
+	docker, err := client.New(
+		client.FromEnv,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
+	}
 
 	drives := GetDrives()
 
-	return System{
+	return &System{
 		Drives:       drives,
 		Applications: GetApplicationsDetails(drives),
-	}
+		docker:       docker,
+	}, nil
 }
 
 type DokvolMetadata struct {

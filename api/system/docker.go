@@ -12,6 +12,7 @@ import (
 
 type VolumeDetail struct {
 	ContainerName string
+	Name          string // Nom du volume Docker
 	Type          string // bind ou volume
 	Source        string // Chemin sur le serveur (ex: /var/lib/docker/volumes/...)
 	Destination   string // Chemin dans le conteneur (ex: /var/www/html)
@@ -47,6 +48,7 @@ func (s *System) GetDockerVolumes() []VolumeDetail {
 
 			detail := VolumeDetail{
 				ContainerName: cName,
+				Name:          mount.Name,
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
@@ -129,6 +131,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 
 			detail := VolumeDetail{
 				ContainerName: applicationName,
+				Name:          mount.Name,
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
