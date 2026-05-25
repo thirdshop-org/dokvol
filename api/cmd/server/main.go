@@ -23,6 +23,7 @@ func main() {
 		api.GET("/drives", handler.GetDrives)
 		api.POST("/drives/init", handler.InitDrive)
 		api.GET("/drives/health", handler.CheckDriveHealth)
+		api.POST("/volumes/migrate", handler.MigrateVolume)
 	}
 
 	addr := os.Getenv("LISTEN_ADDR")
