@@ -7,6 +7,16 @@ export interface DriveInfo {
 	used_pct: number;
 }
 
+export interface HealthCheckResponse {
+	healthy: boolean;
+	message?: string;
+}
+
+export interface InitDriveResponse {
+	success: boolean;
+	message?: string;
+}
+
 export interface VolumeDetail {
 	ContainerName: string;
 	Type: string;

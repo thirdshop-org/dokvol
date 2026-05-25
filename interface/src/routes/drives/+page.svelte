@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getDrives } from '$lib/api';
+	import { getDrives, checkDriveHealth, initDrive } from '$lib/api';
 	import type { DriveInfo } from '$lib/types';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoaderCircle } from '@lucide/svelte';
 
 	let drives = $state<DriveInfo[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+
+	let healthMap = $state<Record<string, boolean | null>>({});
+	let checkingHealth = $state(false);
+	let initializing = $state<Record<string, boolean>>({});
 
 	onMount(async () => {
 		try {
@@ -15,13 +21,51 @@
 		} finally {
 			loading = false;
 		}
+		for (const d of drives) {
+			checkOneHealth(d);
+		}
 	});
+
+	async function checkAllHealth() {
+		checkingHealth = true;
+		await Promise.all(drives.map(d => checkOneHealth(d)));
+		checkingHealth = false;
+	}
+
+	async function checkOneHealth(drive: DriveInfo) {
+		try {
+			const res = await checkDriveHealth(drive.mountpoint);
+			healthMap[drive.mountpoint] = res.healthy;
+		} catch {
+			healthMap[drive.mountpoint] = false;
+		}
+	}
+
+	async function handleInit(drive: DriveInfo) {
+		initializing[drive.mountpoint] = true;
+		try {
+			await initDrive(drive.mountpoint);
+			await checkOneHealth(drive);
+		} catch {
+			healthMap[drive.mountpoint] = false;
+		} finally {
+			initializing[drive.mountpoint] = false;
+		}
+	}
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-bold tracking-tight">Disques</h1>
-		<p class="text-muted-foreground">Périphériques de stockage disponibles pour Docker.</p>
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight">Disques</h1>
+			<p class="text-muted-foreground">Périphériques de stockage disponibles pour Docker.</p>
+		</div>
+		<Button onclick={checkAllHealth} disabled={checkingHealth}>
+			{#if checkingHealth}
+				<LoaderCircle class="size-4 animate-spin" />
+			{/if}
+			Vérifier l'état DokVol
+		</Button>
 	</div>
 
 	{#if loading}
@@ -39,10 +83,13 @@
 						<th class="px-4 py-3 text-right font-medium">Taille totale</th>
 						<th class="px-4 py-3 text-right font-medium">Libre</th>
 						<th class="px-4 py-3 text-right font-medium">Utilisation</th>
+						<th class="px-4 py-3 text-center font-medium">État DokVol</th>
+						<th class="px-4 py-3 text-center font-medium">Action</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each drives as drive (drive.device)}
+						{@const healthy = healthMap[drive.mountpoint]}
 						<tr class="border-b last:border-0 hover:bg-muted/30">
 							<td class="px-4 py-3 font-mono text-xs">{drive.device}</td>
 							<td class="px-4 py-3 font-mono text-xs">{drive.mountpoint}</td>
@@ -63,6 +110,28 @@
 									<span class="w-12 text-right">{drive.used_pct.toFixed(1)}%</span>
 								</div>
 							</td>
+							<td class="px-4 py-3 text-center">
+								{#if healthy === null}
+									<LoaderCircle class="mx-auto size-4 animate-spin text-muted-foreground" />
+								{:else if healthy}
+									<span class="badge badge-ok">Initialisé</span>
+								{:else}
+									<span class="badge badge-missing">Non initialisé</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-center">
+								{#if initializing[drive.mountpoint]}
+									<Button size="sm" disabled>
+										<LoaderCircle class="size-3 animate-spin" />
+									</Button>
+								{:else if healthy === false}
+									<Button size="sm" onclick={() => handleInit(drive)}>
+										Initialiser
+									</Button>
+								{:else if healthy === true}
+									<span class="text-xs text-muted-foreground">✓</span>
+								{/if}
+							</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -70,3 +139,30 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		border-radius: 9999px;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+	.badge-ok {
+		background-color: #dcfce7;
+		color: #166534;
+	}
+	.badge-missing {
+		background-color: #fef2f2;
+		color: #991b1b;
+	}
+	:global(.dark) .badge-ok {
+		background-color: #14532d;
+		color: #bbf7d0;
+	}
+	:global(.dark) .badge-missing {
+		background-color: #450a0a;
+		color: #fecaca;
+	}
+</style>
