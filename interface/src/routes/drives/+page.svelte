@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getDrives, checkDriveHealth, initDrive } from '$lib/api';
+	import { t } from '$lib/i18n';
 	import type { DriveInfo } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle } from '@lucide/svelte';
@@ -17,7 +18,7 @@
 		try {
 			drives = await getDrives();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur inconnue';
+			error = e instanceof Error ? e.message : $t('drives.error.unknown');
 		} finally {
 			loading = false;
 		}
@@ -57,19 +58,19 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Disques</h1>
-			<p class="text-muted-foreground">Périphériques de stockage disponibles pour Docker.</p>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('drives.title')}</h1>
+			<p class="text-muted-foreground">{$t('drives.description')}</p>
 		</div>
 		<Button onclick={checkAllHealth} disabled={checkingHealth}>
 			{#if checkingHealth}
 				<LoaderCircle class="size-4 animate-spin" />
 			{/if}
-			Vérifier l'état DokVol
+			{$t('drives.checkHealth')}
 		</Button>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Chargement...</p>
+		<p class="text-muted-foreground">{$t('drives.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else}
@@ -77,14 +78,14 @@
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">Périphérique</th>
-						<th class="px-4 py-3 text-left font-medium">Point de montage</th>
-						<th class="px-4 py-3 text-left font-medium">Système de fichiers</th>
-						<th class="px-4 py-3 text-right font-medium">Taille totale</th>
-						<th class="px-4 py-3 text-right font-medium">Libre</th>
-						<th class="px-4 py-3 text-right font-medium">Utilisation</th>
-						<th class="px-4 py-3 text-center font-medium">État DokVol</th>
-						<th class="px-4 py-3 text-center font-medium">Action</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('drives.table.device')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('drives.table.mountpoint')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('drives.table.filesystem')}</th>
+						<th class="px-4 py-3 text-right font-medium">{$t('drives.table.total')}</th>
+						<th class="px-4 py-3 text-right font-medium">{$t('drives.table.free')}</th>
+						<th class="px-4 py-3 text-right font-medium">{$t('drives.table.usage')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('drives.table.dokvolStatus')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('drives.table.action')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -114,9 +115,9 @@
 								{#if healthy === null}
 									<LoaderCircle class="mx-auto size-4 animate-spin text-muted-foreground" />
 								{:else if healthy}
-									<span class="badge badge-ok">Initialisé</span>
+									<span class="badge badge-ok">{$t('drives.initialized')}</span>
 								{:else}
-									<span class="badge badge-missing">Non initialisé</span>
+									<span class="badge badge-missing">{$t('drives.notInitialized')}</span>
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-center">
@@ -126,10 +127,10 @@
 									</Button>
 								{:else if healthy === false}
 									<Button size="sm" onclick={() => handleInit(drive)}>
-										Initialiser
+										{$t('drives.initialize')}
 									</Button>
 								{:else if healthy === true}
-									<span class="text-xs text-muted-foreground">✓</span>
+									<span class="text-xs text-muted-foreground">{$t('drives.check')}</span>
 								{/if}
 							</td>
 						</tr>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { t } from '$lib/i18n';
 	import { getDrives, getVolumes, getApplications } from '$lib/api';
 	import { HardDrive, Layers, Box } from '@lucide/svelte';
 
@@ -28,12 +29,12 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-bold tracking-tight">Tableau de bord</h1>
-		<p class="text-muted-foreground">Aperçu de votre infrastructure Docker.</p>
+		<h1 class="text-2xl font-bold tracking-tight">{$t('dashboard.title')}</h1>
+		<p class="text-muted-foreground">{$t('dashboard.description')}</p>
 	</div>
 
 	{#if !ready}
-		<p class="text-muted-foreground">Chargement...</p>
+		<p class="text-muted-foreground">{$t('dashboard.loading')}</p>
 	{:else}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			<a
@@ -41,7 +42,7 @@
 				class="card-link border-l-green-500"
 			>
 				<div>
-					<p class="text-sm font-medium text-muted-foreground">Disques</p>
+					<p class="text-sm font-medium text-muted-foreground">{$t('dashboard.cards.drives')}</p>
 					<p class="text-3xl font-bold">{driveCount}</p>
 				</div>
 				<HardDrive class="size-8 text-muted-foreground" />
@@ -51,7 +52,7 @@
 				class="card-link border-l-blue-500"
 			>
 				<div>
-					<p class="text-sm font-medium text-muted-foreground">Volumes</p>
+					<p class="text-sm font-medium text-muted-foreground">{$t('dashboard.cards.volumes')}</p>
 					<p class="text-3xl font-bold">{volumeCount}</p>
 				</div>
 				<Layers class="size-8 text-muted-foreground" />
@@ -61,7 +62,7 @@
 				class="card-link border-l-amber-500"
 			>
 				<div>
-					<p class="text-sm font-medium text-muted-foreground">Applications</p>
+					<p class="text-sm font-medium text-muted-foreground">{$t('dashboard.cards.applications')}</p>
 					<p class="text-3xl font-bold">{appCount}</p>
 				</div>
 				<Box class="size-8 text-muted-foreground" />

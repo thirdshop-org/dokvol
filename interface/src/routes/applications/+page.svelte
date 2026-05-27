@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getApplications, getDrives, migrateVolume, ApiError } from '$lib/api';
+	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle, ArrowUpFromLine } from '@lucide/svelte';
@@ -32,46 +33,11 @@
 
 	function errorMessage(e: unknown): string {
 		if (e instanceof ApiError) {
-			switch (e.errorCode) {
-				case 'SYSTEM.NOT_FOUND':
-					return 'Erreur système';
-				case 'DRIVE.NOT_FOUND':
-					return 'Disque introuvable';
-				case 'DRIVE.HEALTH_CHECK_FAILED':
-					return 'Le disque est défaillant';
-				case 'APP.NOT_FOUND':
-					return 'Application introuvable';
-				case 'APP.NO_VOLUMES':
-					return 'Aucun volume trouvé pour cette application';
-				case 'MIGRATION.AMBIGUOUS_OPTIONS':
-					return 'Options de migration ambiguës';
-				case 'MIGRATION.SAME_DRIVE':
-					return 'Le disque source et le disque de destination sont identiques';
-				case 'MIGRATION.NO_DESTINATION':
-					return 'Aucun disque de destination sélectionné';
-				case 'MIGRATION.VOLUME_NOT_FOUND':
-					return 'Volume introuvable';
-				case 'MIGRATION.VOLUME_MISMATCH':
-					return 'Volume inattendu';
-				case 'MIGRATION.INSUFFICIENT_DISK_SPACE':
-					return 'Espace disque insuffisant';
-				case 'MIGRATION.SYNC_FAILED':
-					return 'La synchronisation a échoué';
-				case 'MIGRATION.VERIFY_FAILED':
-					return 'La vérification a échoué';
-				case 'MIGRATION.RELINK_FAILED':
-					return 'La reliaison a échoué';
-				case 'CONTAINER.STOP_FAILED':
-					return "Impossible d'arrêter le conteneur";
-				case 'CONTAINER.START_FAILED':
-					return 'Impossible de démarrer le conteneur';
-				case 'CONTAINER.TIMEOUT':
-					return 'Le conteneur a mis trop de temps à s\'arrêter';
-				default:
-					return e.message;
-			}
+			const key = `error.${e.errorCode}`;
+			const msg = $t(key);
+			return msg !== key ? msg : e.message;
 		}
-		return e instanceof Error ? e.message : 'Erreur inconnue';
+		return e instanceof Error ? e.message : $t('applications.error.unknown');
 	}
 
 	onMount(async () => {
@@ -150,13 +116,13 @@
 
 		if (mode === 'same') {
 			if (!sameDest) {
-				resultMessage = 'Veuillez sélectionner un disque de destination.';
+				resultMessage = $t('applications.error.noDest');
 				return;
 			}
 		} else {
 			const selected = volumes.filter((v) => v.checked && v.destination);
 			if (selected.length === 0) {
-				resultMessage = 'Veuillez sélectionner au moins un volume avec une destination.';
+				resultMessage = $t('applications.error.noVolume');
 				return;
 			}
 		}
@@ -180,7 +146,7 @@
 					})),
 				});
 			}
-			resultMessage = 'Migration réussie !';
+			resultMessage = $t('applications.migration.success');
 			apps = await getApplications();
 		} catch (e) {
 			resultMessage = errorMessage(e);
@@ -192,12 +158,12 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-bold tracking-tight">Applications</h1>
-		<p class="text-muted-foreground">Conteneurs Docker et leurs volumes montés.</p>
+		<h1 class="text-2xl font-bold tracking-tight">{$t('applications.title')}</h1>
+		<p class="text-muted-foreground">{$t('applications.description')}</p>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Chargement...</p>
+		<p class="text-muted-foreground">{$t('applications.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else}
@@ -207,12 +173,12 @@
 					<h2 class="font-semibold">
 						{app.ContainerName.replace(/^\//, '')}
 						<span class="ml-2 text-xs font-normal text-muted-foreground">
-							({app.Volumes.length} volume{app.Volumes.length > 1 ? 's' : ''})
+							({$t('applications.volumeCount', { n: app.Volumes.length })})
 						</span>
 					</h2>
 					<Button size="sm" onclick={() => openModal(app)}>
 						<ArrowUpFromLine class="size-3.5" />
-						Migrer
+						{$t('applications.migrate')}
 					</Button>
 				</div>
 				<table class="w-full text-sm">
@@ -244,10 +210,10 @@
 	<Dialog.Content class="sm:max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title>
-				Migrer les données de « {selectedApp?.ContainerName.replace(/^\//, '')} »
+				{$t('applications.migration.title', { name: selectedApp?.ContainerName.replace(/^\//, '') ?? '' })}
 			</Dialog.Title>
 			<Dialog.Description>
-				Sélectionnez le disque de destination pour chaque volume.
+				{$t('applications.migration.description')}
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -261,7 +227,7 @@
 						onchange={() => handleModeChange('same')}
 						class="accent-primary"
 					/>
-					Même destination pour tous
+					{$t('applications.migration.sameDest')}
 				</label>
 				<label class="flex items-center gap-2 text-sm cursor-pointer">
 					<input
@@ -271,19 +237,19 @@
 						onchange={() => handleModeChange('individual')}
 						class="accent-primary"
 					/>
-					Destination individuelle
+					{$t('applications.migration.individualDest')}
 				</label>
 			</fieldset>
 
 			{#if mode === 'same'}
 				<div class="flex items-center gap-3">
-					<span class="text-sm text-muted-foreground shrink-0">Tous les volumes →</span>
+					<span class="text-sm text-muted-foreground shrink-0">{$t('applications.migration.allVolumes')}</span>
 					<select
 						class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						value={sameDest}
 						onchange={(e) => handleSameDestChange((e.target as HTMLSelectElement).value)}
 					>
-						<option value="" disabled>Choisir un disque...</option>
+						<option value="" disabled>{$t('applications.migration.selectDrive')}</option>
 						{#each drives as drive (drive.mountpoint)}
 							<option value={drive.mountpoint}>
 								{drive.device} — {drive.mountpoint} ({drive.free_gb} Go libre)
@@ -305,7 +271,7 @@
 							</Table.Head>
 							<Table.Head>Volume</Table.Head>
 							<Table.Head class="hidden sm:table-cell">Source</Table.Head>
-							<Table.Head>Destination</Table.Head>
+							<Table.Head>{$t('applications.migration.select')}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -324,7 +290,7 @@
 										value={vol.destination}
 										onchange={(e) => handleRowDestChange(i, (e.target as HTMLSelectElement).value)}
 									>
-										<option value="" disabled>Choisir...</option>
+										<option value="" disabled>{$t('applications.migration.select')}</option>
 										{#each drives as drive (drive.mountpoint)}
 											<option value={drive.mountpoint}>
 												{drive.device} — {drive.mountpoint}
@@ -341,8 +307,8 @@
 			{#if resultMessage}
 				<p
 					class="text-sm"
-					class:text-green-600={resultMessage === 'Migration réussie !'}
-					class:text-destructive={resultMessage !== 'Migration réussie !'}
+					class:text-green-600={resultMessage === $t('applications.migration.success')}
+					class:text-destructive={resultMessage !== $t('applications.migration.success')}
 				>
 					{resultMessage}
 				</p>
@@ -351,13 +317,13 @@
 
 		<Dialog.Footer class="flex gap-2">
 			<Button variant="outline" onclick={() => (modalOpen = false)} disabled={migrating}>
-				Annuler
+				{$t('applications.migration.cancel')}
 			</Button>
 			<Button onclick={handleMigrate} disabled={migrating}>
 				{#if migrating}
 					<LoaderCircle class="size-4 animate-spin" />
 				{/if}
-				Migrer
+				{$t('applications.migration.migrate')}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getVolumes } from '$lib/api';
+	import { t } from '$lib/i18n';
 	import type { VolumeDetail } from '$lib/types';
 
 	let volumes = $state<VolumeDetail[]>([]);
@@ -11,7 +12,7 @@
 		try {
 			volumes = await getVolumes();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur inconnue';
+			error = e instanceof Error ? e.message : $t('volumes.error.unknown');
 		} finally {
 			loading = false;
 		}
@@ -20,12 +21,12 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-bold tracking-tight">Volumes</h1>
-		<p class="text-muted-foreground">Tous les montages de volumes Docker.</p>
+		<h1 class="text-2xl font-bold tracking-tight">{$t('volumes.title')}</h1>
+		<p class="text-muted-foreground">{$t('volumes.description')}</p>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Chargement...</p>
+		<p class="text-muted-foreground">{$t('volumes.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else}
@@ -33,10 +34,10 @@
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">Conteneur</th>
-						<th class="px-4 py-3 text-left font-medium">Type</th>
-						<th class="px-4 py-3 text-left font-medium">Source</th>
-						<th class="px-4 py-3 text-left font-medium">Destination</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.container')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.type')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.source')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.destination')}</th>
 					</tr>
 				</thead>
 				<tbody>
