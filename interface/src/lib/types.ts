@@ -19,6 +19,7 @@ export interface InitDriveResponse {
 
 export interface VolumeDetail {
 	ContainerName: string;
+	Name: string;
 	Type: string;
 	Source: string;
 	Destination: string;
@@ -28,4 +29,20 @@ export interface VolumeDetail {
 export interface ApplicationVolumes {
 	ContainerName: string;
 	Volumes: VolumeDetail[];
+}
+
+export interface MigrateVolumeEntry {
+	name: string;
+	destination_mountpoint: string;
+}
+
+export interface MigrateVolumeRequest {
+	application: string;
+	destination_mountpoint?: string;
+	volumes?: MigrateVolumeEntry[];
+}
+
+export interface MigrateVolumeResponse {
+	success: boolean;
+	message?: string;
 }
