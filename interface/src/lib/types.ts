@@ -46,3 +46,9 @@ export interface MigrateVolumeResponse {
 	success: boolean;
 	message?: string;
 }
+
+export interface APIError {
+	error_code: string;
+	message: string;
+	details?: Record<string, unknown>;
+}

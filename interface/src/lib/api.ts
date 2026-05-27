@@ -1,10 +1,26 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, MigrateVolumeResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, MigrateVolumeResponse, APIError } from '$lib/types';
 
 const BASE = '/api';
+
+export class ApiError extends Error {
+	errorCode: string;
+	details?: Record<string, unknown>;
+
+	constructor(err: APIError) {
+		super(err.message);
+		this.name = 'ApiError';
+		this.errorCode = err.error_code;
+		this.details = err.details;
+	}
+}
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 	const res = await fetch(`${BASE}${path}`, options);
 	if (!res.ok) {
+		const body = await res.json().catch(() => null) as APIError | null;
+		if (body?.error_code) {
+			throw new ApiError(body);
+		}
 		throw new Error(`API ${path} failed: ${res.status} ${res.statusText}`);
 	}
 	return res.json();

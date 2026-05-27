@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getApplications, getDrives, migrateVolume } from '$lib/api';
+	import { getApplications, getDrives, migrateVolume, ApiError } from '$lib/api';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle, ArrowUpFromLine } from '@lucide/svelte';
@@ -30,11 +30,55 @@
 	let mode = $state<'same' | 'individual'>('same');
 	let sameDest = $state<string>('');
 
+	function errorMessage(e: unknown): string {
+		if (e instanceof ApiError) {
+			switch (e.errorCode) {
+				case 'SYSTEM.NOT_FOUND':
+					return 'Erreur système';
+				case 'DRIVE.NOT_FOUND':
+					return 'Disque introuvable';
+				case 'DRIVE.HEALTH_CHECK_FAILED':
+					return 'Le disque est défaillant';
+				case 'APP.NOT_FOUND':
+					return 'Application introuvable';
+				case 'APP.NO_VOLUMES':
+					return 'Aucun volume trouvé pour cette application';
+				case 'MIGRATION.AMBIGUOUS_OPTIONS':
+					return 'Options de migration ambiguës';
+				case 'MIGRATION.SAME_DRIVE':
+					return 'Le disque source et le disque de destination sont identiques';
+				case 'MIGRATION.NO_DESTINATION':
+					return 'Aucun disque de destination sélectionné';
+				case 'MIGRATION.VOLUME_NOT_FOUND':
+					return 'Volume introuvable';
+				case 'MIGRATION.VOLUME_MISMATCH':
+					return 'Volume inattendu';
+				case 'MIGRATION.INSUFFICIENT_DISK_SPACE':
+					return 'Espace disque insuffisant';
+				case 'MIGRATION.SYNC_FAILED':
+					return 'La synchronisation a échoué';
+				case 'MIGRATION.VERIFY_FAILED':
+					return 'La vérification a échoué';
+				case 'MIGRATION.RELINK_FAILED':
+					return 'La reliaison a échoué';
+				case 'CONTAINER.STOP_FAILED':
+					return "Impossible d'arrêter le conteneur";
+				case 'CONTAINER.START_FAILED':
+					return 'Impossible de démarrer le conteneur';
+				case 'CONTAINER.TIMEOUT':
+					return 'Le conteneur a mis trop de temps à s\'arrêter';
+				default:
+					return e.message;
+			}
+		}
+		return e instanceof Error ? e.message : 'Erreur inconnue';
+	}
+
 	onMount(async () => {
 		try {
 			apps = await getApplications();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur inconnue';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -139,7 +183,7 @@
 			resultMessage = 'Migration réussie !';
 			apps = await getApplications();
 		} catch (e) {
-			resultMessage = e instanceof Error ? e.message : 'Erreur inconnue';
+			resultMessage = errorMessage(e);
 		} finally {
 			migrating = false;
 		}
