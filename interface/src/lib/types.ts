@@ -52,3 +52,23 @@ export interface APIError {
 	message: string;
 	details?: Record<string, unknown>;
 }
+
+export interface VolumeProgress {
+	volume_name: string;
+	step: string;
+	total_bytes: number;
+	transferred_bytes: number;
+	error?: string;
+}
+
+export interface MigrationJob {
+	id: string;
+	app_name: string;
+	status: 'pending' | 'running' | 'completed' | 'failed';
+	volumes: VolumeProgress[];
+}
+
+export interface StartMigrationResponse {
+	job_id: string;
+	status: string;
+}

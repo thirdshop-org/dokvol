@@ -74,6 +74,10 @@ func (d *Database) SaveVolumes(ctx context.Context, volumes []system.VolumeDetai
 	return nil
 }
 
+func (d *Database) DB() *sql.DB {
+	return d.conn
+}
+
 func (d *Database) Close() error {
 	return d.conn.Close()
 }

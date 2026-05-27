@@ -6,6 +6,7 @@ import (
 
 	"dokvol/api/internal/database"
 	"dokvol/api/internal/handler"
+	"dokvol/api/system"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,8 @@ import (
 func main() {
 	db := database.Init()
 	defer db.Close()
+
+	handler.MigrationManager = system.NewMigrationManager(db.Queries)
 
 	r := gin.Default()
 
@@ -24,6 +27,8 @@ func main() {
 		api.POST("/drives/init", handler.InitDrive)
 		api.GET("/drives/health", handler.CheckDriveHealth)
 		api.POST("/volumes/migrate", handler.MigrateVolume)
+		api.GET("/volumes/migrate", handler.GetMigrationJobs)
+		api.GET("/volumes/migrate/:id", handler.GetMigrationJob)
 	}
 
 	addr := os.Getenv("LISTEN_ADDR")

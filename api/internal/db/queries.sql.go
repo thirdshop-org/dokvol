@@ -296,6 +296,220 @@ func (q *Queries) ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, 
 	return items, nil
 }
 
+const createMigrationJob = `-- name: CreateMigrationJob :one
+INSERT INTO migration_job (id, app_name, status)
+VALUES (?, ?, ?)
+RETURNING id, app_name, status, created_at, updated_at
+`
+
+type CreateMigrationJobParams struct {
+	ID      string `json:"id"`
+	AppName string `json:"app_name"`
+	Status  string `json:"status"`
+}
+
+func (q *Queries) CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error) {
+	row := q.db.QueryRowContext(ctx, createMigrationJob, arg.ID, arg.AppName, arg.Status)
+	var i MigrationJob
+	err := row.Scan(
+		&i.ID,
+		&i.AppName,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMigrationJob = `-- name: GetMigrationJob :one
+SELECT id, app_name, status, created_at, updated_at FROM migration_job WHERE id = ?
+`
+
+func (q *Queries) GetMigrationJob(ctx context.Context, id string) (MigrationJob, error) {
+	row := q.db.QueryRowContext(ctx, getMigrationJob, id)
+	var i MigrationJob
+	err := row.Scan(
+		&i.ID,
+		&i.AppName,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listMigrationJobs = `-- name: ListMigrationJobs :many
+SELECT id, app_name, status, created_at, updated_at FROM migration_job ORDER BY created_at DESC
+`
+
+func (q *Queries) ListMigrationJobs(ctx context.Context) ([]MigrationJob, error) {
+	rows, err := q.db.QueryContext(ctx, listMigrationJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationJob
+	for rows.Next() {
+		var i MigrationJob
+		if err := rows.Scan(
+			&i.ID,
+			&i.AppName,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateMigrationJobStatus = `-- name: UpdateMigrationJobStatus :exec
+UPDATE migration_job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateMigrationJobStatusParams struct {
+	Status string `json:"status"`
+	ID     string `json:"id"`
+}
+
+func (q *Queries) UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateMigrationJobStatus, arg.Status, arg.ID)
+	return err
+}
+
+const createVolumeProgress = `-- name: CreateVolumeProgress :one
+INSERT INTO migration_volume_progress (job_id, volume_name, source_path, dest_path, dest_drive, step)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, created_at, updated_at
+`
+
+type CreateVolumeProgressParams struct {
+	JobID      string `json:"job_id"`
+	VolumeName string `json:"volume_name"`
+	SourcePath string `json:"source_path"`
+	DestPath   string `json:"dest_path"`
+	DestDrive  string `json:"dest_drive"`
+	Step       string `json:"step"`
+}
+
+func (q *Queries) CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error) {
+	row := q.db.QueryRowContext(ctx, createVolumeProgress,
+		arg.JobID,
+		arg.VolumeName,
+		arg.SourcePath,
+		arg.DestPath,
+		arg.DestDrive,
+		arg.Step,
+	)
+	var i MigrationVolumeProgress
+	err := row.Scan(
+		&i.ID,
+		&i.JobID,
+		&i.VolumeName,
+		&i.SourcePath,
+		&i.DestPath,
+		&i.DestDrive,
+		&i.Step,
+		&i.TotalBytes,
+		&i.TransferredBytes,
+		&i.ErrorMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listVolumeProgressByJob = `-- name: ListVolumeProgressByJob :many
+SELECT id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, created_at, updated_at FROM migration_volume_progress WHERE job_id = ? ORDER BY id
+`
+
+func (q *Queries) ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error) {
+	rows, err := q.db.QueryContext(ctx, listVolumeProgressByJob, jobID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationVolumeProgress
+	for rows.Next() {
+		var i MigrationVolumeProgress
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.Step,
+			&i.TotalBytes,
+			&i.TransferredBytes,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateVolumeProgressStep = `-- name: UpdateVolumeProgressStep :exec
+UPDATE migration_volume_progress SET step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateVolumeProgressStepParams struct {
+	Step string `json:"step"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error {
+	_, err := q.db.ExecContext(ctx, updateVolumeProgressStep, arg.Step, arg.ID)
+	return err
+}
+
+const updateVolumeProgressBytes = `-- name: UpdateVolumeProgressBytes :exec
+UPDATE migration_volume_progress SET transferred_bytes = ?, total_bytes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateVolumeProgressBytesParams struct {
+	TransferredBytes int64 `json:"transferred_bytes"`
+	TotalBytes       int64 `json:"total_bytes"`
+	ID               int64 `json:"id"`
+}
+
+func (q *Queries) UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error {
+	_, err := q.db.ExecContext(ctx, updateVolumeProgressBytes, arg.TransferredBytes, arg.TotalBytes, arg.ID)
+	return err
+}
+
+const updateVolumeProgressError = `-- name: UpdateVolumeProgressError :exec
+UPDATE migration_volume_progress SET step = 'failed', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateVolumeProgressErrorParams struct {
+	ErrorMessage string `json:"error_message"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error {
+	_, err := q.db.ExecContext(ctx, updateVolumeProgressError, arg.ErrorMessage, arg.ID)
+	return err
+}
+
 const listVolumes = `-- name: ListVolumes :many
 SELECT id, container_name, type, source, destination, created_at FROM volume ORDER BY container_name
 `

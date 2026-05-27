@@ -21,6 +21,15 @@ type Querier interface {
 	ListDrives(ctx context.Context) ([]Drive, error)
 	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
 	ListVolumes(ctx context.Context) ([]Volume, error)
+	CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error)
+	GetMigrationJob(ctx context.Context, id string) (MigrationJob, error)
+	ListMigrationJobs(ctx context.Context) ([]MigrationJob, error)
+	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
+	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
+	ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error)
+	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error
+	UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error
+	UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -56,6 +56,16 @@ const en = {
 			destination: "Destination",
 		},
 	},
+	step: {
+		pending: "Pending",
+		stopping: "Stopping container",
+		syncing: "Synchronizing",
+		verifying: "Verifying",
+		relinking: "Relinking",
+		starting: "Starting container",
+		completed: "Completed",
+		failed: "Failed",
+	},
 	applications: {
 		title: "Applications",
 		description: "Docker containers and their mounted volumes.",

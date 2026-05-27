@@ -56,3 +56,34 @@ JOIN drive d ON d.id = vd.drive_id;
 
 -- name: DeleteVolumeDrive :exec
 DELETE FROM volume_drive WHERE id = ?;
+
+-- name: CreateMigrationJob :one
+INSERT INTO migration_job (id, app_name, status)
+VALUES (?, ?, ?)
+RETURNING *;
+
+-- name: GetMigrationJob :one
+SELECT * FROM migration_job WHERE id = ?;
+
+-- name: ListMigrationJobs :many
+SELECT * FROM migration_job ORDER BY created_at DESC;
+
+-- name: UpdateMigrationJobStatus :exec
+UPDATE migration_job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: CreateVolumeProgress :one
+INSERT INTO migration_volume_progress (job_id, volume_name, source_path, dest_path, dest_drive, step)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: ListVolumeProgressByJob :many
+SELECT * FROM migration_volume_progress WHERE job_id = ? ORDER BY id;
+
+-- name: UpdateVolumeProgressStep :exec
+UPDATE migration_volume_progress SET step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: UpdateVolumeProgressBytes :exec
+UPDATE migration_volume_progress SET transferred_bytes = ?, total_bytes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: UpdateVolumeProgressError :exec
+UPDATE migration_volume_progress SET step = 'failed', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;

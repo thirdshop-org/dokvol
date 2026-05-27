@@ -23,6 +23,7 @@ type MoveStorageOptions struct {
 	DefaultDestinationDrive *DriveInfo
 	ApplicationVolumes      *[]ApplicationVolumeOptions
 	Application             Application
+	OnProgress              ProgressFn
 }
 
 func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
@@ -40,7 +41,7 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 
 	// 3. Migrer
 	for _, vol := range *volumes {
-		if err := s.migrateVolume(*app, vol); err != nil {
+		if err := s.migrateVolume(*app, vol, opts); err != nil {
 			return fmt.Errorf("migrate volume '%s': %w", vol.VolumeDetail.Name, err)
 		}
 	}
@@ -48,7 +49,7 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 	return nil
 }
 
-func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions) error {
+func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, opts MoveStorageOptions) error {
 
 	sourcePath := vol.VolumeDetail.Source
 	destDrive := vol.DestinationDrive
@@ -57,34 +58,78 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions) er
 	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, vol.VolumeDetail.Name)
 
 	// 1. STOP — Arrêter le conteneur
+	reportProgress(opts, vol.VolumeDetail.Name, StepStopping, 0, 0)
 	if err := s.stopContainer(app.Name); err != nil {
 		return fmt.Errorf("stop failed: %w", err)
 	}
 
 	// 2. SYNC — Copier avec rsync
-	if err := s.rsync(sourcePath, destPath); err != nil {
+	totalBytes, _ := dirSize(sourcePath)
+	reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, 0, totalBytes)
+
+	// Goroutine de progression pendant rsync
+	stopProgress := make(chan struct{})
+	progressDone := make(chan struct{})
+	go func() {
+		defer close(progressDone)
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopProgress:
+				return
+			case <-ticker.C:
+				transferred, err := dirSize(destPath)
+				if err == nil {
+					reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, transferred, totalBytes)
+				}
+			}
+		}
+	}()
+
+	rsyncErr := s.rsync(sourcePath, destPath)
+	close(stopProgress)
+	<-progressDone
+
+	if rsyncErr != nil {
 		s.startContainer(app.Name) // rollback
-		return fmt.Errorf("sync failed: %w", err)
+		return fmt.Errorf("sync failed: %w", rsyncErr)
 	}
 
+	totalAfterSync, _ := dirSize(destPath)
+	if totalAfterSync > totalBytes {
+		totalBytes = totalAfterSync
+	}
+	reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, totalBytes, totalBytes)
+
 	// 3. VERIFY — Checksum
+	reportProgress(opts, vol.VolumeDetail.Name, StepVerifying, totalBytes, totalBytes)
 	if err := s.verifyChecksum(sourcePath, destPath); err != nil {
 		s.startContainer(app.Name) // rollback
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
 	// 4. RELINK — Remplacer sourcePath par un symlink
+	reportProgress(opts, vol.VolumeDetail.Name, StepRelinking, totalBytes, totalBytes)
 	if err := s.relink(sourcePath, destPath); err != nil {
 		s.startContainer(app.Name) // rollback
 		return fmt.Errorf("relink failed: %w", err)
 	}
 
 	// 5. START — Relancer
+	reportProgress(opts, vol.VolumeDetail.Name, StepStarting, totalBytes, totalBytes)
 	if err := s.startContainer(app.Name); err != nil {
 		return fmt.Errorf("start failed: %w", err)
 	}
 
+	reportProgress(opts, vol.VolumeDetail.Name, StepCompleted, totalBytes, totalBytes)
 	return nil
+}
+
+func reportProgress(opts MoveStorageOptions, volumeName, step string, transferred, total int64) {
+	if opts.OnProgress != nil {
+		opts.OnProgress(volumeName, step, transferred, total)
+	}
 }
 
 func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[]ApplicationVolumeOptions, error) {

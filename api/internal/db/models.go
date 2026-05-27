@@ -34,3 +34,26 @@ type VolumeDrive struct {
 	DriveID   int64        `json:"drive_id"`
 	CreatedAt sql.NullTime `json:"created_at"`
 }
+
+type MigrationJob struct {
+	ID        string         `json:"id"`
+	AppName   string         `json:"app_name"`
+	Status    string         `json:"status"`
+	CreatedAt sql.NullTime   `json:"created_at"`
+	UpdatedAt sql.NullTime   `json:"updated_at"`
+}
+
+type MigrationVolumeProgress struct {
+	ID               int64        `json:"id"`
+	JobID            string       `json:"job_id"`
+	VolumeName       string       `json:"volume_name"`
+	SourcePath       string       `json:"source_path"`
+	DestPath         string       `json:"dest_path"`
+	DestDrive        string       `json:"dest_drive"`
+	Step             string       `json:"step"`
+	TotalBytes       int64        `json:"total_bytes"`
+	TransferredBytes int64        `json:"transferred_bytes"`
+	ErrorMessage     sql.NullString `json:"error_message"`
+	CreatedAt        sql.NullTime `json:"created_at"`
+	UpdatedAt        sql.NullTime `json:"updated_at"`
+}
