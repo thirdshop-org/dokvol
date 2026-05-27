@@ -99,11 +99,19 @@ func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[
 	}
 
 	if app == nil {
-		return nil, nil, fmt.Errorf("application '%s' not found in system", opts.Application.Name)
+		return nil, nil, NewAPIError(
+			ErrAppNotFound,
+			fmt.Sprintf("application '%s' not found in system", opts.Application.Name),
+			map[string]any{"application": opts.Application.Name},
+		)
 	}
 
 	if len(app.DockerVolumes) == 0 {
-		return nil, nil, fmt.Errorf("application '%s' has no volumes", app.Name)
+		return nil, nil, NewAPIError(
+			ErrAppNoVolumes,
+			fmt.Sprintf("application '%s' has no volumes", app.Name),
+			map[string]any{"application": app.Name},
+		)
 	}
 
 	// Cas 1 : DefaultDestinationDrive → tous les volumes vers la même destination
@@ -125,14 +133,24 @@ func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[
 	if opts.DefaultDestinationDrive == nil && opts.ApplicationVolumes != nil {
 
 		if len(*opts.ApplicationVolumes) == 0 {
-			return nil, nil, fmt.Errorf("ApplicationVolumes is empty")
+			return nil, nil, NewAPIError(
+				ErrMigrationNoDest,
+				"ApplicationVolumes is empty",
+				nil,
+			)
 		}
 
 		if len(*opts.ApplicationVolumes) != len(app.DockerVolumes) {
-			return nil, nil, fmt.Errorf(
-				"volume count mismatch: got %d, expected %d",
-				len(*opts.ApplicationVolumes),
-				len(app.DockerVolumes),
+			return nil, nil, NewAPIError(
+				ErrMigrationVolMismatch,
+				fmt.Sprintf("volume count mismatch: got %d, expected %d",
+					len(*opts.ApplicationVolumes),
+					len(app.DockerVolumes),
+				),
+				map[string]any{
+					"provided": len(*opts.ApplicationVolumes),
+					"expected": len(app.DockerVolumes),
+				},
 			)
 		}
 
@@ -141,11 +159,19 @@ func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[
 
 	// Cas 3 : Les deux définis → ambiguïté
 	if opts.DefaultDestinationDrive != nil && opts.ApplicationVolumes != nil {
-		return nil, nil, fmt.Errorf("cannot set both DefaultDestinationDrive and ApplicationVolumes")
+		return nil, nil, NewAPIError(
+			ErrMigrationAmbiguous,
+			"cannot set both DefaultDestinationDrive and ApplicationVolumes",
+			nil,
+		)
 	}
 
 	// Cas 4 : Rien défini
-	return nil, nil, fmt.Errorf("no destination provided: set DefaultDestinationDrive or ApplicationVolumes")
+	return nil, nil, NewAPIError(
+		ErrMigrationNoDest,
+		"no destination provided: set DefaultDestinationDrive or ApplicationVolumes",
+		nil,
+	)
 }
 
 func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolumeOptions) error {
@@ -162,10 +188,13 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 		}
 
 		if !found {
-			return fmt.Errorf(
-				"volume '%s' does not belong to application '%s'",
-				provided.VolumeDetail.Name,
-				app.Name,
+			return NewAPIError(
+				ErrMigrationVolNotFound,
+				fmt.Sprintf("volume '%s' does not belong to application '%s'", provided.VolumeDetail.Name, app.Name),
+				map[string]any{
+					"volume":      provided.VolumeDetail.Name,
+					"application": app.Name,
+				},
 			)
 		}
 	}
@@ -182,10 +211,13 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 		}
 
 		if !covered {
-			return fmt.Errorf(
-				"volume '%s' of application '%s' has no destination",
-				appVol.Name,
-				app.Name,
+			return NewAPIError(
+				ErrMigrationNoDest,
+				fmt.Sprintf("volume '%s' of application '%s' has no destination", appVol.Name, app.Name),
+				map[string]any{
+					"volume":      appVol.Name,
+					"application": app.Name,
+				},
 			)
 		}
 	}
@@ -202,9 +234,12 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 		}
 
 		if !driveExists {
-			return fmt.Errorf(
-				"destination drive '%s' does not exist in system",
-				provided.DestinationDrive.Device,
+			return NewAPIError(
+				ErrDriveNotFound,
+				fmt.Sprintf("destination drive '%s' does not exist in system", provided.DestinationDrive.Device),
+				map[string]any{
+					"device": provided.DestinationDrive.Device,
+				},
 			)
 		}
 	}
@@ -215,10 +250,13 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 		sourceDrive := s.getDriveForPath(provided.VolumeDetail.Source)
 
 		if sourceDrive != nil && *sourceDrive == provided.DestinationDrive {
-			return fmt.Errorf(
-				"volume '%s' is already on drive '%s'",
-				provided.VolumeDetail.Name,
-				provided.DestinationDrive.Device,
+			return NewAPIError(
+				ErrMigrationSameDrive,
+				fmt.Sprintf("volume '%s' is already on drive '%s'", provided.VolumeDetail.Name, provided.DestinationDrive.Device),
+				map[string]any{
+					"volume": provided.VolumeDetail.Name,
+					"drive":  provided.DestinationDrive.Device,
+				},
 			)
 		}
 	}
@@ -235,12 +273,23 @@ func (s *System) relink(sourcePath, destPath string) error {
 
 	// Supprimer l'ancien dossier source
 	if err := os.RemoveAll(sourcePath); err != nil {
-		return fmt.Errorf("failed to remove source: %w", err)
+		return NewAPIError(
+			ErrMigrationRelinkFailed,
+			fmt.Sprintf("failed to remove source: %s", err),
+			map[string]any{"path": sourcePath},
+		)
 	}
 
 	// Créer le symlink : sourcePath → destPath
 	if err := os.Symlink(destPath, sourcePath); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
+		return NewAPIError(
+			ErrMigrationRelinkFailed,
+			fmt.Sprintf("failed to create symlink: %s", err),
+			map[string]any{
+				"source": sourcePath,
+				"target": destPath,
+			},
+		)
 	}
 
 	return nil
@@ -256,7 +305,11 @@ func (s *System) stopContainer(appName string) error {
 	if _, err := s.docker.ContainerStop(ctx, appName, client.ContainerStopOptions{
 		Timeout: &timeout,
 	}); err != nil {
-		return fmt.Errorf("failed to stop container %s: %w", appName, err)
+		return NewAPIError(
+			ErrContainerStopFailed,
+			fmt.Sprintf("failed to stop container '%s': %s", appName, err),
+			map[string]any{"container": appName},
+		)
 	}
 
 	// Attendre que le conteneur soit vraiment arrêté
@@ -267,7 +320,11 @@ func (s *System) stopContainer(appName string) error {
 	select {
 	case err := <-result.Error:
 		if err != nil {
-			return fmt.Errorf("error waiting for container stop: %w", err)
+			return NewAPIError(
+				ErrContainerStopFailed,
+				fmt.Sprintf("error waiting for container stop: %s", err),
+				map[string]any{"container": appName},
+			)
 		}
 	case <-result.Result:
 		// OK
@@ -281,7 +338,11 @@ func (s *System) startContainer(appName string) error {
 	ctx := context.Background()
 
 	if _, err := s.docker.ContainerStart(ctx, appName, client.ContainerStartOptions{}); err != nil {
-		return fmt.Errorf("failed to start container %s: %w", appName, err)
+		return NewAPIError(
+			ErrContainerStartFailed,
+			fmt.Sprintf("failed to start container '%s': %s", appName, err),
+			map[string]any{"container": appName},
+		)
 	}
 
 	// Attendre que le conteneur soit healthy ou running
@@ -300,11 +361,19 @@ func (s *System) waitForContainer(appName string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for container to be running")
+			return NewAPIError(
+				ErrContainerTimeout,
+				fmt.Sprintf("timeout waiting for container '%s' to be running", appName),
+				map[string]any{"container": appName},
+			)
 		default:
 			inspect, err := s.docker.ContainerInspect(context.Background(), appName, client.ContainerInspectOptions{})
 			if err != nil {
-				return fmt.Errorf("failed to inspect container: %w", err)
+				return NewAPIError(
+					ErrContainerTimeout,
+					fmt.Sprintf("failed to inspect container '%s': %s", appName, err),
+					map[string]any{"container": appName},
+				)
 			}
 
 			switch inspect.Container.State.Status {
@@ -316,7 +385,11 @@ func (s *System) waitForContainer(appName string) error {
 					return nil
 				}
 			case "exited", "dead":
-				return fmt.Errorf("container %s exited unexpectedly", appName)
+				return NewAPIError(
+					ErrContainerStopFailed,
+					fmt.Sprintf("container '%s' exited unexpectedly", appName),
+					map[string]any{"container": appName},
+				)
 			}
 
 			time.Sleep(2 * time.Second)
@@ -363,11 +436,14 @@ func (s *System) checkDiskSpace(volumes *[]ApplicationVolumeOptions) error {
 		}
 
 		if needed > available {
-			return fmt.Errorf(
-				"not enough space on '%s': need %s, available %s",
-				mountpoint,
-				formatBytes(needed),
-				formatBytes(available),
+			return NewAPIError(
+				ErrMigrationDiskSpace,
+				fmt.Sprintf("not enough space on '%s'", mountpoint),
+				map[string]any{
+					"drive":           mountpoint,
+					"needed_bytes":    needed,
+					"available_bytes": available,
+				},
 			)
 		}
 	}
@@ -397,7 +473,15 @@ func (s *System) rsync(sourcePath, destPath string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("rsync failed: %w\nstderr: %s", err, stderr.String())
+		return NewAPIError(
+			ErrMigrationSyncFailed,
+			fmt.Sprintf("rsync failed: %s", stderr.String()),
+			map[string]any{
+				"source":      sourcePath,
+				"destination": destPath,
+				"stderr":      stderr.String(),
+			},
+		)
 	}
 
 	return nil
@@ -426,7 +510,14 @@ func (s *System) verifyChecksum(sourcePath, destPath string) error {
 
 		// Comparer les checksums
 		if err := compareFileChecksum(path, destFilePath); err != nil {
-			return fmt.Errorf("checksum mismatch for %s: %w", relativePath, err)
+			return NewAPIError(
+				ErrMigrationVerifyFailed,
+				fmt.Sprintf("checksum mismatch for '%s'", relativePath),
+				map[string]any{
+					"file":  relativePath,
+					"error": err.Error(),
+				},
+			)
 		}
 
 		return nil
@@ -449,3 +540,4 @@ func (s *System) verifyTransfer(sourcePath, destPath string, mode VerifyMode) er
 	}
 	return nil
 }
+

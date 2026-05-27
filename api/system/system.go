@@ -31,7 +31,11 @@ func New() (*System, error) {
 		client.FromEnv,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create docker client: %w", err)
+		return nil, NewAPIError(
+			ErrSystemNotFound,
+			fmt.Sprintf("failed to create docker client: %s", err),
+			nil,
+		)
 	}
 
 	drives := GetDrives()
@@ -72,7 +76,11 @@ func (s *System) CreateDokvolPartitionDriveFolder(drive DriveInfo) error {
 
 func (s *System) createDokvolPartitionDriveFolder(drive DriveInfo) error {
 	if !s.driveExists(drive) {
-		return fmt.Errorf("drive doesn't exist on the system")
+		return NewAPIError(
+			ErrDriveNotFound,
+			"drive doesn't exist on the system",
+			map[string]any{"mountpoint": drive.Mountpoint},
+		)
 	}
 
 	dokvolPath := filepath.Join(drive.Mountpoint, DOKVOL_FOLDER)
@@ -86,13 +94,21 @@ func (s *System) createDokvolPartitionDriveFolder(drive DriveInfo) error {
 
 func (s *System) createDokvolPartitionDriveMetadataFile(drive DriveInfo) error {
 	if !s.driveExists(drive) {
-		return fmt.Errorf("drive doesn't exist on the system")
+		return NewAPIError(
+			ErrDriveNotFound,
+			"drive doesn't exist on the system",
+			map[string]any{"mountpoint": drive.Mountpoint},
+		)
 	}
 
 	dokvolPath := filepath.Join(drive.Mountpoint, DOKVOL_FOLDER)
 
 	if _, err := os.Stat(dokvolPath); os.IsNotExist(err) {
-		return fmt.Errorf("dokvol folder doesn't exist at %s", dokvolPath)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol folder doesn't exist at %s", dokvolPath),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	metadataPath := filepath.Join(dokvolPath, DOKVOL_METADATA_FILE)
@@ -105,7 +121,11 @@ func (s *System) createDokvolPartitionDriveMetadataFile(drive DriveInfo) error {
 
 		bytes, err := json.Marshal(meta)
 		if err != nil {
-			return fmt.Errorf("error marshaling metadata: %w", err)
+			return NewAPIError(
+				ErrDriveHealthCheck,
+				fmt.Sprintf("error marshaling metadata: %s", err),
+				nil,
+			)
 		}
 
 		return os.WriteFile(metadataPath, bytes, 0600)
@@ -126,7 +146,11 @@ func (s *System) CheckDokvolHealth(drive DriveInfo) error {
 
 func (s *System) checkDokvolFolderHealth(drive DriveInfo) error {
 	if !s.driveExists(drive) {
-		return fmt.Errorf("drive doesn't exist on the system")
+		return NewAPIError(
+			ErrDriveNotFound,
+			"drive doesn't exist on the system",
+			map[string]any{"mountpoint": drive.Mountpoint},
+		)
 	}
 
 	dokvolPath := filepath.Join(drive.Mountpoint, DOKVOL_FOLDER)
@@ -134,38 +158,70 @@ func (s *System) checkDokvolFolderHealth(drive DriveInfo) error {
 	info, err := os.Stat(dokvolPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("dokvol folder missing at %s", dokvolPath)
+			return NewAPIError(
+				ErrDriveHealthCheck,
+				fmt.Sprintf("dokvol folder missing at %s", dokvolPath),
+				map[string]any{"path": dokvolPath},
+			)
 		}
-		return fmt.Errorf("cannot stat dokvol folder: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("cannot stat dokvol folder: %s", err),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("dokvol path exists but is not a directory: %s", dokvolPath)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol path exists but is not a directory: %s", dokvolPath),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return fmt.Errorf("cannot read syscall stats for dokvol folder")
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			"cannot read syscall stats for dokvol folder",
+			nil,
+		)
 	}
 
 	currentUser, err := user.Lookup("dokvol")
 	if err != nil {
-		return fmt.Errorf("cannot find dokvol system user: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("cannot find dokvol system user: %s", err),
+			nil,
+		)
 	}
 
 	expectedUID, _ := strconv.Atoi(currentUser.Uid)
 	expectedGID, _ := strconv.Atoi(currentUser.Gid)
 
 	if int(stat.Uid) != expectedUID {
-		return fmt.Errorf("dokvol folder owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol folder owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	if int(stat.Gid) != expectedGID {
-		return fmt.Errorf("dokvol folder group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol folder group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	if info.Mode().Perm() != 0700 {
-		return fmt.Errorf("dokvol folder permissions mismatch: got %o, expected %o", info.Mode().Perm(), 0700)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol folder permissions mismatch: got %o, expected %o", info.Mode().Perm(), 0700),
+			map[string]any{"path": dokvolPath},
+		)
 	}
 
 	return nil
@@ -173,7 +229,11 @@ func (s *System) checkDokvolFolderHealth(drive DriveInfo) error {
 
 func (s *System) checkDokvolMetadataHealth(drive DriveInfo) error {
 	if !s.driveExists(drive) {
-		return fmt.Errorf("drive doesn't exist on the system")
+		return NewAPIError(
+			ErrDriveNotFound,
+			"drive doesn't exist on the system",
+			map[string]any{"mountpoint": drive.Mountpoint},
+		)
 	}
 
 	metadataPath := filepath.Join(drive.Mountpoint, DOKVOL_FOLDER, DOKVOL_METADATA_FILE)
@@ -181,56 +241,104 @@ func (s *System) checkDokvolMetadataHealth(drive DriveInfo) error {
 	info, err := os.Stat(metadataPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("dokvol metadata file missing at %s", metadataPath)
+			return NewAPIError(
+				ErrDriveHealthCheck,
+				fmt.Sprintf("dokvol metadata file missing at %s", metadataPath),
+				map[string]any{"path": metadataPath},
+			)
 		}
-		return fmt.Errorf("cannot stat dokvol metadata file: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("cannot stat dokvol metadata file: %s", err),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	if info.IsDir() {
-		return fmt.Errorf("dokvol metadata path exists but is a directory: %s", metadataPath)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("dokvol metadata path exists but is a directory: %s", metadataPath),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return fmt.Errorf("cannot read syscall stats for dokvol metadata file")
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			"cannot read syscall stats for dokvol metadata file",
+			nil,
+		)
 	}
 
 	currentUser, err := user.Lookup("dokvol")
 	if err != nil {
-		return fmt.Errorf("cannot find dokvol system user: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("cannot find dokvol system user: %s", err),
+			nil,
+		)
 	}
 
 	expectedUID, _ := strconv.Atoi(currentUser.Uid)
 	expectedGID, _ := strconv.Atoi(currentUser.Gid)
 
 	if int(stat.Uid) != expectedUID {
-		return fmt.Errorf("metadata file owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("metadata file owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	if int(stat.Gid) != expectedGID {
-		return fmt.Errorf("metadata file group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("metadata file group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	if info.Mode().Perm() != 0600 {
-		return fmt.Errorf("metadata file permissions mismatch: got %o, expected %o", info.Mode().Perm(), 0600)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("metadata file permissions mismatch: got %o, expected %o", info.Mode().Perm(), 0600),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return fmt.Errorf("cannot read metadata file: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("cannot read metadata file: %s", err),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	var meta DokvolMetadata
 	if err := json.Unmarshal(data, &meta); err != nil {
-		return fmt.Errorf("metadata file is not valid JSON: %w", err)
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			fmt.Sprintf("metadata file is not valid JSON: %s", err),
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	if meta.Version == "" {
-		return fmt.Errorf("metadata file is missing version field")
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			"metadata file is missing version field",
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	if meta.CreatedAt == "" {
-		return fmt.Errorf("metadata file is missing created_at field")
+		return NewAPIError(
+			ErrDriveHealthCheck,
+			"metadata file is missing created_at field",
+			map[string]any{"path": metadataPath},
+		)
 	}
 
 	return nil

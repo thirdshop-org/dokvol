@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -164,10 +165,16 @@ func MigrateVolume(c *gin.Context) {
 	}
 
 	if err := s.MoveApplicationStorage(opts); err != nil {
-		c.JSON(http.StatusInternalServerError, migrateVolumeResponse{
-			Success: false,
-			Message: fmt.Sprintf("migration failed: %s", err),
-		})
+		var apiErr *system.APIError
+		if errors.As(err, &apiErr) {
+			c.JSON(apiErr.HTTPStatus(), apiErr)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, system.NewAPIError(
+			"INTERNAL_ERROR",
+			err.Error(),
+			nil,
+		))
 		return
 	}
 

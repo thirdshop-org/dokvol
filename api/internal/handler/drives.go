@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -44,35 +45,44 @@ func GetDrives(c *gin.Context) {
 func InitDrive(c *gin.Context) {
 	var req driveActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, initDriveResponse{
-			Success: false,
-			Message: "invalid request body, 'mountpoint' required",
-		})
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"invalid request body, 'mountpoint' required",
+			nil,
+		))
 		return
 	}
 	if req.Mountpoint == "" {
-		c.JSON(http.StatusBadRequest, initDriveResponse{
-			Success: false,
-			Message: "'mountpoint' is required",
-		})
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"'mountpoint' is required",
+			nil,
+		))
 		return
 	}
 
 	drive, err := findDriveByMountpoint(req.Mountpoint)
 	if err != nil {
-		c.JSON(http.StatusNotFound, initDriveResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		c.JSON(http.StatusNotFound, system.NewAPIError(
+			system.ErrDriveNotFound,
+			err.Error(),
+			nil,
+		))
 		return
 	}
 
 	s := system.System{Drives: system.GetDrives()}
 	if err := s.CreateDokvolPartitionDriveFolder(*drive); err != nil {
-		c.JSON(http.StatusInternalServerError, initDriveResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		var apiErr *system.APIError
+		if errors.As(err, &apiErr) {
+			c.JSON(apiErr.HTTPStatus(), apiErr)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, system.NewAPIError(
+			"INTERNAL_ERROR",
+			err.Error(),
+			nil,
+		))
 		return
 	}
 
@@ -85,34 +95,38 @@ func InitDrive(c *gin.Context) {
 func CheckDriveHealth(c *gin.Context) {
 	var req driveActionRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, healthCheckResponse{
-			Healthy: false,
-			Message: "invalid query parameters",
-		})
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"invalid query parameters",
+			nil,
+		))
 		return
 	}
 	if req.Mountpoint == "" {
-		c.JSON(http.StatusBadRequest, healthCheckResponse{
-			Healthy: false,
-			Message: "'mountpoint' query parameter is required",
-		})
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"'mountpoint' query parameter is required",
+			nil,
+		))
 		return
 	}
 
 	drive, err := findDriveByMountpoint(req.Mountpoint)
 	if err != nil {
-		c.JSON(http.StatusNotFound, healthCheckResponse{
-			Healthy: false,
-			Message: err.Error(),
-		})
+		c.JSON(http.StatusNotFound, system.NewAPIError(
+			system.ErrDriveNotFound,
+			err.Error(),
+			nil,
+		))
 		return
 	}
 
 	s := system.System{Drives: system.GetDrives()}
 	if err := s.CheckDokvolHealth(*drive); err != nil {
-		c.JSON(http.StatusOK, healthCheckResponse{
-			Healthy: false,
-			Message: err.Error(),
+		c.JSON(http.StatusOK, gin.H{
+			"healthy":     false,
+			"error_code":  system.ErrDriveHealthCheck,
+			"message":     err.Error(),
 		})
 		return
 	}
