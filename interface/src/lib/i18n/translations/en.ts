@@ -74,8 +74,10 @@ const en = {
 			unknown: "Unknown error",
 		},
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		history: "History",
 		migrate: "Migrate",
 		migration: {
+			running: "Migration in progress",
 			title: "Migrate data of « {{name}} »",
 			description: "Select the destination drive for each volume.",
 			sameDest: "Same destination for all",
@@ -86,6 +88,8 @@ const en = {
 			success: "Migration successful!",
 			cancel: "Cancel",
 			migrate: "Migrate",
+			noHistory: "No migrations yet",
+			close: "Close",
 		},
 		error: {
 			noDest: "Please select a destination drive.",

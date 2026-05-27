@@ -4,7 +4,7 @@
 	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { LoaderCircle, ArrowUpFromLine } from '@lucide/svelte';
+	import { LoaderCircle, ArrowUpFromLine, History } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
@@ -25,6 +25,10 @@
 
 	let activeJobs = $state<MigrationJob[]>([]);
 	let activePollTimer: ReturnType<typeof setInterval> | null = null;
+
+	let historyModalOpen = $state(false);
+	let historyAppName = $state<string | null>(null);
+	let historyJobs = $state<MigrationJob[]>([]);
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -47,7 +51,6 @@
 	};
 
 	let volumes = $state<VolumeRow[]>([]);
-
 	let mode = $state<'same' | 'individual'>('same');
 	let sameDest = $state<string>('');
 
@@ -68,7 +71,6 @@
 		} finally {
 			loading = false;
 		}
-
 		startActivePoll();
 	});
 
@@ -101,7 +103,6 @@
 			try {
 				const job = await getMigrationStatus(jobId);
 				currentJob = job;
-
 				if (job.status === 'completed' || job.status === 'failed') {
 					stopPoll();
 					if (job.status === 'completed') {
@@ -123,6 +124,21 @@
 			clearInterval(pollTimer);
 			pollTimer = null;
 		}
+	}
+
+	function hasActiveJob(appName: string): boolean {
+		return activeJobs.some(j => j.app_name === appName);
+	}
+
+	async function openHistory(appName: string) {
+		historyAppName = appName;
+		try {
+			const all = await getActiveMigrations();
+			historyJobs = all.filter(j => j.app_name === appName);
+		} catch {
+			historyJobs = [];
+		}
+		historyModalOpen = true;
 	}
 
 	function openModal(app: ApplicationVolumes) {
@@ -168,7 +184,6 @@
 
 	function handleRowDestChange(index: number, mountpoint: string) {
 		volumes[index].destination = mountpoint;
-
 		if (mode === 'same') {
 			sameDest = mountpoint;
 			for (const v of volumes) {
@@ -253,8 +268,13 @@
 		}
 	}
 
-	function isSameApp(appName: string): boolean {
-		return currentJob?.app_name === appName && (currentJob?.status === 'running' || currentJob?.status === 'pending');
+	function statusBadge(status: string): string {
+		switch (status) {
+			case 'completed': return 'badge badge-success';
+			case 'failed': return 'badge badge-destructive';
+			case 'running': case 'pending': return 'badge badge-running';
+			default: return 'badge';
+		}
 	}
 </script>
 
@@ -270,25 +290,31 @@
 		<p class="text-destructive">{error}</p>
 	{:else}
 		{#each apps as app (app.ContainerName)}
-			{@const isActive = isSameApp(app.ContainerName)}
-			<div class="rounded-lg border" class:border-primary={isActive}>
+			{@const busy = hasActiveJob(app.ContainerName)}
+			<div class="rounded-lg border" class:border-primary={busy}>
 				<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
 					<h2 class="font-semibold">
 						{app.ContainerName.replace(/^\//, '')}
-						{#if isActive}
+						{#if busy}
 							<span class="ml-2 inline-flex items-center gap-1 text-xs text-primary">
 								<LoaderCircle class="size-3 animate-spin" />
-								{$t('applications.migrate')}…
+								{$t('applications.migration.running')}
 							</span>
 						{/if}
 						<span class="ml-2 text-xs font-normal text-muted-foreground">
 							({$t('applications.volumeCount', { n: app.Volumes.length })})
 						</span>
 					</h2>
-					<Button size="sm" onclick={() => openModal(app)} disabled={isActive}>
-						<ArrowUpFromLine class="size-3.5" />
-						{$t('applications.migrate')}
-					</Button>
+					<div class="flex gap-2">
+						<Button size="sm" variant="outline" onclick={() => openHistory(app.ContainerName)}>
+							<History class="size-3.5" />
+							{$t('applications.history')}
+						</Button>
+						<Button size="sm" onclick={() => openModal(app)} disabled={busy}>
+							<ArrowUpFromLine class="size-3.5" />
+							{$t('applications.migrate')}
+						</Button>
+					</div>
 				</div>
 				<table class="w-full text-sm">
 					<thead class="border-b text-muted-foreground">
@@ -313,39 +339,53 @@
 			</div>
 		{/each}
 	{/if}
-
-	{#if activeJobs.length > 0}
-		<div class="space-y-2">
-			<h3 class="text-sm font-medium text-muted-foreground">Migrations en cours</h3>
-			{#each activeJobs as job (job.id)}
-				<div class="rounded-lg border p-3 text-sm">
-					<div class="flex items-center justify-between">
-						<span class="font-medium">{job.app_name.replace(/^\//, '')}</span>
-						<span class="text-xs text-muted-foreground">{job.status}</span>
-					</div>
-					{#each job.volumes as vol}
-						<div class="mt-2">
-							<div class="flex items-center justify-between text-xs text-muted-foreground">
-								<span>{vol.volume_name}</span>
-								<span>{stepLabel(vol.step)} — {progressPct(vol)}%</span>
-							</div>
-							<div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-								<div
-									class="h-full rounded-full transition-all"
-									class:bg-primary={vol.step !== 'failed' && vol.step !== 'completed'}
-									class:bg-green-500={vol.step === 'completed'}
-									class:bg-destructive={vol.step === 'failed'}
-									style="width: {progressPct(vol)}%"
-								></div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/each}
-		</div>
-	{/if}
 </div>
 
+<!-- Modale d'historique -->
+<Dialog.Root bind:open={historyModalOpen}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>
+				{$t('applications.migration.title', { name: historyAppName?.replace(/^\//, '') ?? '' })} — {$t('applications.history')}
+			</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-3 max-h-96 overflow-y-auto">
+			{#if historyJobs.length === 0}
+				<p class="text-sm text-muted-foreground">{$t('applications.migration.noHistory')}</p>
+			{:else}
+				{#each historyJobs as job (job.id)}
+					<div class="rounded-lg border p-3 text-sm">
+						<div class="flex items-center justify-between mb-2">
+							<span class={statusBadge(job.status)}>{job.status}</span>
+							<span class="text-xs text-muted-foreground font-mono">{job.id.slice(0, 8)}…</span>
+						</div>
+						{#each job.volumes as vol}
+							<div class="flex items-center justify-between py-1 text-xs border-b last:border-0 border-muted/30">
+								<div class="flex items-center gap-2">
+									<span class="font-medium">{vol.volume_name}</span>
+									<span class="text-muted-foreground">— {stepLabel(vol.step)}</span>
+								</div>
+								<div class="flex items-center gap-2">
+									{#if vol.total_bytes > 0}
+										<span class="text-muted-foreground">{formatBytes(vol.total_bytes)}</span>
+									{/if}
+									{#if vol.step === 'failed' && vol.error}
+										<span class="text-destructive text-xs max-w-48 truncate" title={vol.error}>{vol.error}</span>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/each}
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button onclick={() => (historyModalOpen = false)}>{$t('applications.migration.close')}</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Modale de migration -->
 <Dialog.Root bind:open={modalOpen}>
 	<Dialog.Content class="sm:max-w-2xl">
 		<Dialog.Header>
@@ -359,7 +399,6 @@
 
 		<div class="space-y-4">
 			{#if currentJobId && currentJob}
-				<!-- Progression -->
 				<div class="space-y-3">
 					{#each currentJob.volumes as vol}
 						<div>
@@ -388,7 +427,6 @@
 					{/each}
 				</div>
 			{:else}
-				<!-- Sélecteurs de destination (inchangé) -->
 				<fieldset class="flex gap-6">
 					<label class="flex items-center gap-2 text-sm cursor-pointer">
 						<input
@@ -436,11 +474,7 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-10">
-									<Checkbox.Root
-										checked={allChecked()}
-										onclick={toggleAll}
-										disabled={migrating}
-									/>
+									<Checkbox.Root checked={allChecked()} onclick={toggleAll} disabled={migrating} />
 								</Table.Head>
 								<Table.Head>Volume</Table.Head>
 								<Table.Head class="hidden sm:table-cell">Source</Table.Head>
@@ -454,9 +488,7 @@
 										<Checkbox.Root bind:checked={volumes[i].checked} disabled={migrating} />
 									</Table.Cell>
 									<Table.Cell class="font-medium">{vol.name}</Table.Cell>
-									<Table.Cell class="hidden sm:table-cell font-mono text-xs text-muted-foreground max-w-48 truncate">
-										{vol.source}
-									</Table.Cell>
+									<Table.Cell class="hidden sm:table-cell font-mono text-xs text-muted-foreground max-w-48 truncate">{vol.source}</Table.Cell>
 									<Table.Cell>
 										<select
 											class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-xs shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -466,9 +498,7 @@
 										>
 											<option value="" disabled>{$t('applications.migration.select')}</option>
 											{#each drives as drive (drive.mountpoint)}
-												<option value={drive.mountpoint}>
-													{drive.device} — {drive.mountpoint}
-												</option>
+												<option value={drive.mountpoint}>{drive.device} — {drive.mountpoint}</option>
 											{/each}
 										</select>
 									</Table.Cell>
@@ -496,19 +526,15 @@
 			</Button>
 			{#if !currentJobId}
 				<Button onclick={handleMigrate} disabled={migrating}>
-					{#if migrating}
-						<LoaderCircle class="size-4 animate-spin" />
-					{/if}
+					{#if migrating}<LoaderCircle class="size-4 animate-spin" />{/if}
 					{$t('applications.migration.migrate')}
 				</Button>
 			{:else if currentJob?.status === 'completed' || currentJob?.status === 'failed'}
-				<Button onclick={() => handleModalClose()}>
-					Fermer
-				</Button>
+				<Button onclick={() => handleModalClose()}>{$t('applications.migration.close')}</Button>
 			{:else}
 				<Button disabled>
 					<LoaderCircle class="size-4 animate-spin" />
-					Migration…
+					{$t('applications.migration.running')}…
 				</Button>
 			{/if}
 		</Dialog.Footer>
@@ -532,6 +558,18 @@
 		background-color: #fef3c7;
 		color: #92400e;
 	}
+	.badge-running {
+		background-color: #dbeafe;
+		color: #1e40af;
+	}
+	.badge-success {
+		background-color: #dcfce7;
+		color: #166534;
+	}
+	.badge-destructive {
+		background-color: #fef2f2;
+		color: #991b1b;
+	}
 	:global(.dark) .badge.volume {
 		background-color: #1e3a5f;
 		color: #bfdbfe;
@@ -539,5 +577,17 @@
 	:global(.dark) .badge.bind {
 		background-color: #5c3d0e;
 		color: #fde68a;
+	}
+	:global(.dark) .badge-running {
+		background-color: #1e3a5f;
+		color: #bfdbfe;
+	}
+	:global(.dark) .badge-success {
+		background-color: #14532d;
+		color: #bbf7d0;
+	}
+	:global(.dark) .badge-destructive {
+		background-color: #450a0a;
+		color: #fecaca;
 	}
 </style>
