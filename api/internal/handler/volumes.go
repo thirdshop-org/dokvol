@@ -42,13 +42,13 @@ type jobJSON struct {
 
 func jobToJSON(job *system.Job) jobJSON {
 	vols := make([]volumeProgressJSON, len(job.Volumes))
-	for i, v := range job.Volumes {
+	for i := range job.Volumes {
 		vols[i] = volumeProgressJSON{
-			VolumeName:       v.VolumeName,
-			Step:             v.Step,
-			TotalBytes:       v.TotalBytes,
-			TransferredBytes: v.Transferred,
-			Error:            v.Error,
+			VolumeName:       job.Volumes[i].VolumeName,
+			Step:             job.Volumes[i].Step,
+			TotalBytes:       job.Volumes[i].TotalBytes,
+			TransferredBytes: job.Volumes[i].Transferred,
+			Error:            job.Volumes[i].Error,
 		}
 	}
 	return jobJSON{

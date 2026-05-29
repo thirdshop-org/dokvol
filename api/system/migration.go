@@ -34,6 +34,7 @@ const (
 )
 
 type VolumeRow struct {
+	mu          sync.Mutex
 	ID          int64
 	VolumeName  string
 	Step        string
@@ -109,6 +110,7 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 			DestPath:   destPath,
 			DestDrive:  vol.DestinationDrive.Mountpoint,
 		}
+		job.Volumes[i].mu = sync.Mutex{}
 	}
 
 	m.mu.Lock()
@@ -126,7 +128,28 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 	m.mu.RUnlock()
 
 	if ok {
-		return job, nil
+		copy := &Job{
+			ID:      job.ID,
+			AppName: job.AppName,
+			Status:  job.Status,
+			Volumes: make([]VolumeRow, len(job.Volumes)),
+		}
+		for i := range job.Volumes {
+			job.Volumes[i].mu.Lock()
+			copy.Volumes[i] = VolumeRow{
+				ID:          job.Volumes[i].ID,
+				VolumeName:  job.Volumes[i].VolumeName,
+				Step:        job.Volumes[i].Step,
+				TotalBytes:  job.Volumes[i].TotalBytes,
+				Transferred: job.Volumes[i].Transferred,
+				SourcePath:  job.Volumes[i].SourcePath,
+				DestPath:    job.Volumes[i].DestPath,
+				DestDrive:   job.Volumes[i].DestDrive,
+				Error:       job.Volumes[i].Error,
+			}
+			job.Volumes[i].mu.Unlock()
+		}
+		return copy, nil
 	}
 
 	dbJob, err := m.db.GetMigrationJob(ctx, id)
@@ -220,9 +243,11 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 				return
 			}
 
+			vol.mu.Lock()
 			vol.Step = step
 			vol.TotalBytes = total
 			vol.Transferred = transferred
+			vol.mu.Unlock()
 
 			_ = m.db.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
 				Step: step,
@@ -251,7 +276,15 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 		m.mu.RUnlock()
 		if job != nil {
 			for i := range job.Volumes {
-				if job.Volumes[i].Step != StepCompleted {
+				job.Volumes[i].mu.Lock()
+				needsFail := job.Volumes[i].Step != StepCompleted
+				if needsFail {
+					job.Volumes[i].Step = StepFailed
+					job.Volumes[i].Error = err.Error()
+				}
+				job.Volumes[i].mu.Unlock()
+
+				if needsFail {
 					_ = m.db.UpdateVolumeProgressError(ctx, db.UpdateVolumeProgressErrorParams{
 						ErrorMessage: err.Error(),
 						ID:           job.Volumes[i].ID,
