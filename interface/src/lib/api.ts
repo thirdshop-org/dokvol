@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse } from '$lib/types';
 
 const BASE = '/api';
 
@@ -64,4 +64,8 @@ export function getActiveMigrations(): Promise<MigrationJob[]> {
 
 export function getMigrationStatus(jobId: string): Promise<MigrationJob> {
 	return fetchJson<MigrationJob>(`/volumes/migrate/${jobId}`);
+}
+
+export function getSystemHealth(): Promise<SystemHealthResponse> {
+	return fetchJson<SystemHealthResponse>('/health');
 }

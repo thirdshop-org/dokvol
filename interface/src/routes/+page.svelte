@@ -1,24 +1,35 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n';
-	import { getDrives, getVolumes, getApplications } from '$lib/api';
-	import { HardDrive, Layers, Box } from '@lucide/svelte';
+	import { getDrives, getVolumes, getApplications, getSystemHealth } from '$lib/api';
+	import { ApiError } from '$lib/api';
+	import { HardDrive, Layers, Box, Stethoscope, Check, X } from '@lucide/svelte';
+	import type { SystemHealthResponse } from '$lib/types';
 
 	let driveCount = $state(0);
 	let volumeCount = $state(0);
 	let appCount = $state(0);
 	let ready = $state(false);
+	let health = $state<SystemHealthResponse | null>(null);
+	let healthError = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
-			const [drives, volumes, apps] = await Promise.all([
+			const [drives, volumes, apps, h] = await Promise.all([
 				getDrives(),
 				getVolumes(),
 				getApplications(),
+				getSystemHealth().catch((e: unknown) => {
+					if (e instanceof ApiError) {
+						healthError = e.message;
+					}
+					return null;
+				}),
 			]);
 			driveCount = drives.length;
 			volumeCount = volumes.length;
 			appCount = apps.length;
+			health = h;
 		} catch {
 			// silencieux
 		} finally {
@@ -36,7 +47,7 @@
 	{#if !ready}
 		<p class="text-muted-foreground">{$t('dashboard.loading')}</p>
 	{:else}
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<a
 				href="/drives"
 				class="card-link border-l-green-500"
@@ -67,6 +78,27 @@
 				</div>
 				<Box class="size-8 text-muted-foreground" />
 			</a>
+			<div class="card-link border-l-gray-500">
+				<div class="min-w-0">
+					<p class="text-sm font-medium text-muted-foreground">{$t('dashboard.health.title')}</p>
+					{#if healthError}
+						<p class="text-sm text-destructive truncate" title={healthError}>{healthError}</p>
+					{:else if health?.healthy}
+						<div class="flex items-center gap-1 text-green-600">
+							<Check class="size-4" />
+							<span class="text-sm font-medium">{$t('dashboard.health.ok')}</span>
+						</div>
+					{:else if health && !health.healthy}
+						<div class="flex items-center gap-1 text-destructive">
+							<X class="size-4" />
+							<span class="text-sm font-medium">{$t('dashboard.health.fail')}</span>
+						</div>
+					{:else}
+						<p class="text-sm text-muted-foreground">—</p>
+					{/if}
+				</div>
+				<Stethoscope class="size-8 text-muted-foreground shrink-0" />
+			</div>
 		</div>
 	{/if}
 </div>

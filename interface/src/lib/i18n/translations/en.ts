@@ -13,6 +13,11 @@ const en = {
 		title: "Dashboard",
 		description: "Overview of your Docker infrastructure.",
 		loading: "Loading…",
+		health: {
+			title: "System health",
+			ok: "System OK",
+			fail: "Failed",
+		},
 		cards: {
 			drives: "Drives",
 			volumes: "Volumes",
@@ -70,9 +75,6 @@ const en = {
 		title: "Applications",
 		description: "Docker containers and their mounted volumes.",
 		loading: "Loading…",
-		error: {
-			unknown: "Unknown error",
-		},
 		volumeCount: "{{n}} volume | {{n}} volumes",
 		history: "History",
 		migrate: "Migrate",
@@ -92,12 +94,14 @@ const en = {
 			close: "Close",
 		},
 		error: {
+			unknown: "Unknown error",
 			noDest: "Please select a destination drive.",
 			noVolume: "Please select at least one volume with a destination.",
 		},
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "System error",
+		"SYSTEM.HEALTH_CHECK_FAILED": "One or more system components are missing",
 		"DRIVE.NOT_FOUND": "Drive not found",
 		"DRIVE.HEALTH_CHECK_FAILED": "Drive health check failed",
 		"APP.NOT_FOUND": "Application not found",

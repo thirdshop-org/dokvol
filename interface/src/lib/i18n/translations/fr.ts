@@ -13,6 +13,11 @@ const fr = {
 		title: "Tableau de bord",
 		description: "Aperçu de votre infrastructure Docker.",
 		loading: "Chargement…",
+		health: {
+			title: "État du système",
+			ok: "Système OK",
+			fail: "Échec",
+		},
 		cards: {
 			drives: "Disques",
 			volumes: "Volumes",
@@ -70,9 +75,6 @@ const fr = {
 		title: "Applications",
 		description: "Conteneurs Docker et leurs volumes montés.",
 		loading: "Chargement…",
-		error: {
-			unknown: "Erreur inconnue",
-		},
 		volumeCount: "{{n}} volume | {{n}} volumes",
 		history: "Historique",
 		migrate: "Migrer",
@@ -92,12 +94,14 @@ const fr = {
 			close: "Fermer",
 		},
 		error: {
+			unknown: "Erreur inconnue",
 			noDest: "Veuillez sélectionner un disque de destination.",
 			noVolume: "Veuillez sélectionner au moins un volume avec une destination.",
 		},
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "Erreur système",
+		"SYSTEM.HEALTH_CHECK_FAILED": "Un ou plusieurs composants système sont manquants",
 		"DRIVE.NOT_FOUND": "Disque introuvable",
 		"DRIVE.HEALTH_CHECK_FAILED": "Le disque est défaillant",
 		"APP.NOT_FOUND": "Application introuvable",
