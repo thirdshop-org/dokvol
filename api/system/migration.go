@@ -187,18 +187,72 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 }
 
 func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
-	dbJobs, err := m.db.ListMigrationJobs(ctx)
+	rows, err := m.db.ListJobsWithProgress(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 
-	jobs := make([]*Job, len(dbJobs))
-	for i, j := range dbJobs {
-		job, err := m.GetJob(ctx, j.ID)
-		if err != nil {
-			return nil, err
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	seen := make(map[string]bool, len(rows))
+	var jobs []*Job
+
+	for _, row := range rows {
+		jobID := row.JobID
+		if seen[jobID] {
+			continue
 		}
-		jobs[i] = job
+		seen[jobID] = true
+
+		if mem, ok := m.jobs[jobID]; ok {
+			copy := &Job{
+				ID:      mem.ID,
+				AppName: mem.AppName,
+				Status:  mem.Status,
+				Volumes: make([]VolumeRow, len(mem.Volumes)),
+			}
+			for i := range mem.Volumes {
+				mem.Volumes[i].mu.Lock()
+				copy.Volumes[i] = VolumeRow{
+					ID:          mem.Volumes[i].ID,
+					VolumeName:  mem.Volumes[i].VolumeName,
+					Step:        mem.Volumes[i].Step,
+					TotalBytes:  mem.Volumes[i].TotalBytes,
+					Transferred: mem.Volumes[i].Transferred,
+					SourcePath:  mem.Volumes[i].SourcePath,
+					DestPath:    mem.Volumes[i].DestPath,
+					DestDrive:   mem.Volumes[i].DestDrive,
+					Error:       mem.Volumes[i].Error,
+				}
+				mem.Volumes[i].mu.Unlock()
+			}
+			jobs = append(jobs, copy)
+			continue
+		}
+
+		job := &Job{
+			ID:      jobID,
+			AppName: row.AppName,
+			Status:  MigrationJobStatus(row.Status),
+		}
+		for _, r := range rows {
+			if r.JobID != jobID {
+				continue
+			}
+			job.Volumes = append(job.Volumes, VolumeRow{
+				ID:          r.ProgressID,
+				VolumeName:  r.VolumeName,
+				Step:        r.Step,
+				TotalBytes:  r.TotalBytes,
+				Transferred: r.TransferredBytes,
+				SourcePath:  r.SourcePath,
+				DestPath:    r.DestPath,
+				DestDrive:   r.DestDrive,
+				Error:       r.ErrorMessage.String,
+			})
+		}
+		jobs = append(jobs, job)
 	}
 
 	return jobs, nil

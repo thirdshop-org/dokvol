@@ -510,6 +510,91 @@ func (q *Queries) UpdateVolumeProgressError(ctx context.Context, arg UpdateVolum
 	return err
 }
 
+const listJobsWithProgress = `-- name: ListJobsWithProgress :many
+SELECT
+    j.id AS job_id,
+    j.app_name,
+    j.status,
+    j.created_at AS job_created_at,
+    j.updated_at AS job_updated_at,
+    p.id AS progress_id,
+    p.job_id AS p_job_id,
+    p.volume_name,
+    p.source_path,
+    p.dest_path,
+    p.dest_drive,
+    p.step,
+    p.total_bytes,
+    p.transferred_bytes,
+    p.error_message,
+    p.created_at AS progress_created_at,
+    p.updated_at AS progress_updated_at
+FROM migration_job j
+JOIN migration_volume_progress p ON p.job_id = j.id
+ORDER BY j.created_at DESC, p.id
+`
+
+type ListJobsWithProgressRow struct {
+	JobID            string         `json:"job_id"`
+	AppName          string         `json:"app_name"`
+	Status           string         `json:"status"`
+	JobCreatedAt     sql.NullTime   `json:"job_created_at"`
+	JobUpdatedAt     sql.NullTime   `json:"job_updated_at"`
+	ProgressID       int64          `json:"progress_id"`
+	PJobID           string         `json:"p_job_id"`
+	VolumeName       string         `json:"volume_name"`
+	SourcePath       string         `json:"source_path"`
+	DestPath         string         `json:"dest_path"`
+	DestDrive        string         `json:"dest_drive"`
+	Step             string         `json:"step"`
+	TotalBytes       int64          `json:"total_bytes"`
+	TransferredBytes int64          `json:"transferred_bytes"`
+	ErrorMessage     sql.NullString `json:"error_message"`
+	ProgressCreatedAt sql.NullTime  `json:"progress_created_at"`
+	ProgressUpdatedAt sql.NullTime  `json:"progress_updated_at"`
+}
+
+func (q *Queries) ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error) {
+	rows, err := q.db.QueryContext(ctx, listJobsWithProgress)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListJobsWithProgressRow
+	for rows.Next() {
+		var i ListJobsWithProgressRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.AppName,
+			&i.Status,
+			&i.JobCreatedAt,
+			&i.JobUpdatedAt,
+			&i.ProgressID,
+			&i.PJobID,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.Step,
+			&i.TotalBytes,
+			&i.TransferredBytes,
+			&i.ErrorMessage,
+			&i.ProgressCreatedAt,
+			&i.ProgressUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVolumes = `-- name: ListVolumes :many
 SELECT id, container_name, type, source, destination, created_at FROM volume ORDER BY container_name
 `

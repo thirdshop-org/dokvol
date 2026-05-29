@@ -30,6 +30,7 @@ type Querier interface {
 	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error
 	UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error
 	UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error
+	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

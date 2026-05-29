@@ -87,3 +87,26 @@ UPDATE migration_volume_progress SET transferred_bytes = ?, total_bytes = ?, upd
 
 -- name: UpdateVolumeProgressError :exec
 UPDATE migration_volume_progress SET step = 'failed', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: ListJobsWithProgress :many
+SELECT
+    j.id AS job_id,
+    j.app_name,
+    j.status,
+    j.created_at AS job_created_at,
+    j.updated_at AS job_updated_at,
+    p.id AS progress_id,
+    p.job_id AS p_job_id,
+    p.volume_name,
+    p.source_path,
+    p.dest_path,
+    p.dest_drive,
+    p.step,
+    p.total_bytes,
+    p.transferred_bytes,
+    p.error_message,
+    p.created_at AS progress_created_at,
+    p.updated_at AS progress_updated_at
+FROM migration_job j
+JOIN migration_volume_progress p ON p.job_id = j.id
+ORDER BY j.created_at DESC, p.id;
