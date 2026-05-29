@@ -259,10 +259,12 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 }
 
 func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Application, volumes []ApplicationVolumeOptions) {
-	_ = m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
+	if err := m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
 		Status: string(JobRunning),
 		ID:     jobID,
-	})
+	}); err != nil {
+		log.Printf("failed to set job %s to running: %s", jobID, err)
+	}
 
 	m.mu.Lock()
 	if j, ok := m.jobs[jobID]; ok {
@@ -303,15 +305,19 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 			vol.Transferred = transferred
 			vol.mu.Unlock()
 
-			_ = m.db.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
+			if err := m.db.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
 				Step: step,
 				ID:   vol.ID,
-			})
-			_ = m.db.UpdateVolumeProgressBytes(ctx, db.UpdateVolumeProgressBytesParams{
+			}); err != nil {
+				log.Printf("failed to update step for volume %s in job %s: %s", volumeName, jobID, err)
+			}
+			if err := m.db.UpdateVolumeProgressBytes(ctx, db.UpdateVolumeProgressBytesParams{
 				TransferredBytes: transferred,
 				TotalBytes:       total,
 				ID:               vol.ID,
-			})
+			}); err != nil {
+				log.Printf("failed to update bytes for volume %s in job %s: %s", volumeName, jobID, err)
+			}
 		},
 	}
 
@@ -339,19 +345,29 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 				job.Volumes[i].mu.Unlock()
 
 				if needsFail {
-					_ = m.db.UpdateVolumeProgressError(ctx, db.UpdateVolumeProgressErrorParams{
+					if err := m.db.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
+						Step: StepFailed,
+						ID:   job.Volumes[i].ID,
+					}); err != nil {
+						log.Printf("failed to set step to failed for volume %s: %s", job.Volumes[i].VolumeName, err)
+					}
+					if err := m.db.UpdateVolumeProgressError(ctx, db.UpdateVolumeProgressErrorParams{
 						ErrorMessage: err.Error(),
 						ID:           job.Volumes[i].ID,
-					})
+					}); err != nil {
+						log.Printf("failed to set error for volume %s: %s", job.Volumes[i].VolumeName, err)
+					}
 				}
 			}
 		}
 	}
 
-	_ = m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
+	if err := m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
 		Status: status,
 		ID:     jobID,
-	})
+	}); err != nil {
+		log.Printf("failed to set job %s status to %s: %s", jobID, status, err)
+	}
 
 	m.mu.Lock()
 	if j, ok := m.jobs[jobID]; ok {
