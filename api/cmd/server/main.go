@@ -26,6 +26,7 @@ func main() {
 		api.GET("/drives", handler.GetDrives)
 		api.POST("/drives/init", handler.InitDrive)
 		api.GET("/drives/health", handler.CheckDriveHealth)
+		api.GET("/health", handler.GetSystemHealth)
 		api.POST("/volumes/migrate", handler.MigrateVolume)
 		api.GET("/volumes/migrate", handler.GetMigrationJobs)
 		api.GET("/volumes/migrate/:id", handler.GetMigrationJob)
