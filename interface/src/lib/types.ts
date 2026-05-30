@@ -77,3 +77,32 @@ export interface SystemHealthResponse {
 	healthy: boolean;
 	checks?: { check: string; passed: boolean; error?: string }[];
 }
+
+export interface StatsVolume {
+	id: number;
+	batch_id: number;
+	volume_name: string;
+	container_name: string;
+	source_path: string;
+	total_bytes: number;
+	duration_ms: number;
+	captured_at: string;
+}
+
+export interface StatsDrive {
+	id: number;
+	batch_id: number;
+	mountpoint: string;
+	device: string;
+	total_bytes: number;
+	used_bytes: number;
+	free_bytes: number;
+	duration_ms: number;
+	captured_at: string;
+}
+
+export interface StatsApplication {
+	captured_at: string;
+	container_name: string;
+	total_bytes: number | null;
+}

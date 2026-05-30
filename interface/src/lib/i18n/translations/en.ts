@@ -8,6 +8,7 @@ const en = {
 		drives: "Drives",
 		volumes: "Volumes",
 		applications: "Applications",
+		stats: "Statistics",
 	},
 	dashboard: {
 		title: "Dashboard",
@@ -98,6 +99,24 @@ const en = {
 			noDest: "Please select a destination drive.",
 			noVolume: "Please select at least one volume with a destination.",
 		},
+	},
+	stats: {
+		title: "Statistics",
+		description: "Storage evolution over time.",
+		loading: "Loading statistics…",
+		range: {
+			"7d": "7 days",
+			"30d": "30 days",
+			"90d": "90 days",
+			all: "All",
+		},
+		drives: "Drives",
+		volumes: "Volumes",
+		applications: "Applications",
+		storage: "Storage",
+		evolution: "Evolution",
+		bytes: "Bytes",
+		topVolumes: "Top volumes",
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "System error",

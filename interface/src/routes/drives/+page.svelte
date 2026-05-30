@@ -86,6 +86,7 @@
 						<th class="px-4 py-3 text-right font-medium">{$t('drives.table.usage')}</th>
 						<th class="px-4 py-3 text-center font-medium">{$t('drives.table.dokvolStatus')}</th>
 						<th class="px-4 py-3 text-center font-medium">{$t('drives.table.action')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('stats.evolution')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -132,6 +133,9 @@
 								{:else if healthy === true}
 									<span class="text-xs text-muted-foreground">{$t('drives.check')}</span>
 								{/if}
+							</td>
+							<td class="px-4 py-3 text-center">
+								<a href="/stats/drives?mountpoint={encodeURIComponent(drive.mountpoint)}" class="text-xs text-muted-foreground hover:text-foreground underline">{$t('stats.evolution')}</a>
 							</td>
 						</tr>
 					{/each}

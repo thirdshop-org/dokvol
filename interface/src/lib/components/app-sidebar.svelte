@@ -5,6 +5,7 @@
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import Home from '@lucide/svelte/icons/house';
 	import Layers from '@lucide/svelte/icons/layers';
+	import AreaChart from '@lucide/svelte/icons/area-chart';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
 	const links = [
@@ -12,6 +13,7 @@
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/volumes', label: 'nav.volumes', icon: Layers },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
+		{ href: '/stats', label: 'nav.stats', icon: AreaChart },
 	];
 </script>
 

@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication } from '$lib/types';
 
 const BASE = '/api';
 
@@ -68,4 +68,25 @@ export function getMigrationStatus(jobId: string): Promise<MigrationJob> {
 
 export function getSystemHealth(): Promise<SystemHealthResponse> {
 	return fetchJson<SystemHealthResponse>('/health');
+}
+
+export function getStatsVolume(name: string, from?: string, to?: string): Promise<StatsVolume[]> {
+	const params = new URLSearchParams({ name });
+	if (from) params.set('from', from);
+	if (to) params.set('to', to);
+	return fetchJson<StatsVolume[]>(`/stats/volumes?${params}`);
+}
+
+export function getStatsDrive(mountpoint: string, from?: string, to?: string): Promise<StatsDrive[]> {
+	const params = new URLSearchParams({ mountpoint });
+	if (from) params.set('from', from);
+	if (to) params.set('to', to);
+	return fetchJson<StatsDrive[]>(`/stats/drives?${params}`);
+}
+
+export function getStatsApplication(name: string, from?: string, to?: string): Promise<StatsApplication[]> {
+	const params = new URLSearchParams({ name });
+	if (from) params.set('from', from);
+	if (to) params.set('to', to);
+	return fetchJson<StatsApplication[]>(`/stats/applications?${params}`);
 }

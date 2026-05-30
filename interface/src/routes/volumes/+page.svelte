@@ -38,6 +38,7 @@
 						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.type')}</th>
 						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.source')}</th>
 						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.destination')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('stats.evolution')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -49,6 +50,9 @@
 							</td>
 							<td class="px-4 py-3 font-mono text-xs">{vol.Source}</td>
 							<td class="px-4 py-3 font-mono text-xs">{vol.Destination}</td>
+							<td class="px-4 py-3 text-center">
+								<a href="/stats/volumes?name={encodeURIComponent(vol.Name || vol.Source)}" class="text-xs text-muted-foreground hover:text-foreground underline">{$t('stats.evolution')}</a>
+							</td>
 						</tr>
 					{/each}
 				</tbody>
