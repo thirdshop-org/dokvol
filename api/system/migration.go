@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -56,22 +57,22 @@ type Job struct {
 type ProgressFn func(VolumeName, Step string, TransferredBytes, TotalBytes int64)
 
 type MigrationManager struct {
-	db   *db.Queries
-	mu   sync.RWMutex
-	jobs map[string]*Job
+	Queries *db.Queries
+	mu      sync.RWMutex
+	jobs    map[string]*Job
 }
 
 func NewMigrationManager(queries *db.Queries) *MigrationManager {
 	return &MigrationManager{
-		db:   queries,
-		jobs: make(map[string]*Job),
+		Queries: queries,
+		jobs:    make(map[string]*Job),
 	}
 }
 
 func (m *MigrationManager) StartJob(ctx context.Context, appName string, application Application, volumes []ApplicationVolumeOptions) (string, error) {
 	jobID := uuid.New().String()
 
-	_, err := m.db.CreateMigrationJob(ctx, db.CreateMigrationJobParams{
+	_, err := m.Queries.CreateMigrationJob(ctx, db.CreateMigrationJobParams{
 		ID:      jobID,
 		AppName: appName,
 		Status:  string(JobPending),
@@ -90,7 +91,7 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 	for i, vol := range volumes {
 		destPath := filepath.Join(vol.DestinationDrive.Mountpoint, DOKVOL_FOLDER, appName, vol.VolumeDetail.Name)
 
-		p, err := m.db.CreateVolumeProgress(ctx, db.CreateVolumeProgressParams{
+		p, err := m.Queries.CreateVolumeProgress(ctx, db.CreateVolumeProgressParams{
 			JobID:      jobID,
 			VolumeName: vol.VolumeDetail.Name,
 			SourcePath: vol.VolumeDetail.Source,
@@ -152,12 +153,12 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 		return copy, nil
 	}
 
-	dbJob, err := m.db.GetMigrationJob(ctx, id)
+	dbJob, err := m.Queries.GetMigrationJob(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get job: %w", err)
 	}
 
-	progressRows, err := m.db.ListVolumeProgressByJob(ctx, id)
+	progressRows, err := m.Queries.ListVolumeProgressByJob(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("list progress: %w", err)
 	}
@@ -187,7 +188,7 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 }
 
 func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
-	rows, err := m.db.ListJobsWithProgress(ctx)
+	rows, err := m.Queries.ListJobsWithProgress(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
@@ -259,7 +260,7 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 }
 
 func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Application, volumes []ApplicationVolumeOptions) {
-	if err := m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
+	if err := m.Queries.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
 		Status: string(JobRunning),
 		ID:     jobID,
 	}); err != nil {
@@ -305,13 +306,13 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 			vol.Transferred = transferred
 			vol.mu.Unlock()
 
-			if err := m.db.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
+			if err := m.Queries.UpdateVolumeProgressStep(ctx, db.UpdateVolumeProgressStepParams{
 				Step: step,
 				ID:   vol.ID,
 			}); err != nil {
 				log.Printf("failed to update step for volume %s in job %s: %s", volumeName, jobID, err)
 			}
-			if err := m.db.UpdateVolumeProgressBytes(ctx, db.UpdateVolumeProgressBytesParams{
+			if err := m.Queries.UpdateVolumeProgressBytes(ctx, db.UpdateVolumeProgressBytesParams{
 				TransferredBytes: transferred,
 				TotalBytes:       total,
 				ID:               vol.ID,
@@ -345,8 +346,8 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 				job.Volumes[i].mu.Unlock()
 
 				if needsFail {
-					if err := m.db.UpdateVolumeProgressError(ctx, db.UpdateVolumeProgressErrorParams{
-						ErrorMessage: err.Error(),
+					if err := m.Queries.UpdateVolumeProgressError(ctx, db.UpdateVolumeProgressErrorParams{
+						ErrorMessage: sql.NullString{String: err.Error(), Valid: true},
 						ID:           job.Volumes[i].ID,
 					}); err != nil {
 						log.Printf("failed to set error for volume %s: %s", job.Volumes[i].VolumeName, err)
@@ -356,7 +357,7 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 		}
 	}
 
-	if err := m.db.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
+	if err := m.Queries.UpdateMigrationJobStatus(ctx, db.UpdateMigrationJobStatusParams{
 		Status: status,
 		ID:     jobID,
 	}); err != nil {

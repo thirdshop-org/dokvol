@@ -6,31 +6,43 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
 	CreateDrive(ctx context.Context, arg CreateDriveParams) (Drive, error)
+	CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error)
+	CreateStatsBatch(ctx context.Context) (StatsBatch, error)
+	CreateStatsDrive(ctx context.Context, arg CreateStatsDriveParams) error
+	CreateStatsVolume(ctx context.Context, arg CreateStatsVolumeParams) error
 	CreateVolume(ctx context.Context, arg CreateVolumeParams) (Volume, error)
 	CreateVolumeDrive(ctx context.Context, arg CreateVolumeDriveParams) (VolumeDrive, error)
+	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
 	DeleteDrive(ctx context.Context, id int64) error
+	DeleteOldStatsDrive(ctx context.Context, capturedAt sql.NullTime) error
+	DeleteOldStatsVolume(ctx context.Context, capturedAt sql.NullTime) error
 	DeleteVolume(ctx context.Context, id int64) error
 	DeleteVolumeDrive(ctx context.Context, id int64) error
 	GetDrive(ctx context.Context, id int64) (Drive, error)
+	GetMigrationJob(ctx context.Context, id string) (MigrationJob, error)
+	GetPreference(ctx context.Context, key string) (UserPreference, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)
 	ListDrives(ctx context.Context) ([]Drive, error)
-	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
-	ListVolumes(ctx context.Context) ([]Volume, error)
-	CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error)
-	GetMigrationJob(ctx context.Context, id string) (MigrationJob, error)
+	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
 	ListMigrationJobs(ctx context.Context) ([]MigrationJob, error)
-	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
-	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
+	ListPreferences(ctx context.Context) ([]UserPreference, error)
+	ListStatsApplication(ctx context.Context, arg ListStatsApplicationParams) ([]ListStatsApplicationRow, error)
+	ListStatsDriveByMountpoint(ctx context.Context, arg ListStatsDriveByMountpointParams) ([]StatsDrive, error)
+	ListStatsVolumeByName(ctx context.Context, arg ListStatsVolumeByNameParams) ([]StatsVolume, error)
+	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
 	ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error)
-	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error
+	ListVolumes(ctx context.Context) ([]Volume, error)
+	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
 	UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error
 	UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error
-	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
+	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error
+	UpsertPreference(ctx context.Context, arg UpsertPreferenceParams) error
 }
 
 var _ Querier = (*Queries)(nil)

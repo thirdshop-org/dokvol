@@ -47,3 +47,39 @@ CREATE TABLE migration_volume_progress (
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE user_preferences (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE stats_batch (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stats_volume (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id       INTEGER NOT NULL REFERENCES stats_batch(id),
+    volume_name    TEXT NOT NULL,
+    container_name TEXT NOT NULL,
+    source_path    TEXT NOT NULL,
+    total_bytes    INTEGER NOT NULL,
+    duration_ms    INTEGER NOT NULL DEFAULT 0,
+    captured_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stats_drive (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id    INTEGER NOT NULL REFERENCES stats_batch(id),
+    mountpoint  TEXT NOT NULL,
+    device      TEXT NOT NULL,
+    total_bytes INTEGER NOT NULL,
+    used_bytes  INTEGER NOT NULL,
+    free_bytes  INTEGER NOT NULL,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_stats_volume_name     ON stats_volume(volume_name, captured_at);
+CREATE INDEX IF NOT EXISTS idx_stats_drive_mountpoint ON stats_drive(mountpoint, captured_at);

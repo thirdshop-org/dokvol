@@ -17,6 +17,10 @@ func main() {
 
 	handler.MigrationManager = system.NewMigrationManager(db.Queries)
 
+	collector := system.NewStatsCollector(db.Queries)
+	go collector.Start()
+	defer collector.Stop()
+
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -30,6 +34,13 @@ func main() {
 		api.POST("/volumes/migrate", handler.MigrateVolume)
 		api.GET("/volumes/migrate", handler.GetMigrationJobs)
 		api.GET("/volumes/migrate/:id", handler.GetMigrationJob)
+
+		api.GET("/preferences", handler.GetPreferences)
+		api.PUT("/preferences", handler.UpdatePreference)
+
+		api.GET("/stats/volumes", handler.ListStatsVolume)
+		api.GET("/stats/drives", handler.ListStatsDrive)
+		api.GET("/stats/applications", handler.ListStatsApplication)
 	}
 
 	addr := os.Getenv("LISTEN_ADDR")

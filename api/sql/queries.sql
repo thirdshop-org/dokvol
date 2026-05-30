@@ -110,3 +110,50 @@ SELECT
 FROM migration_job j
 JOIN migration_volume_progress p ON p.job_id = j.id
 ORDER BY j.created_at DESC, p.id;
+
+-- name: GetPreference :one
+SELECT * FROM user_preferences WHERE key = ?;
+
+-- name: ListPreferences :many
+SELECT * FROM user_preferences;
+
+-- name: UpsertPreference :exec
+INSERT INTO user_preferences (key, value) VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+
+-- name: CreateStatsBatch :one
+INSERT INTO stats_batch DEFAULT VALUES RETURNING *;
+
+-- name: CreateStatsVolume :exec
+INSERT INTO stats_volume (batch_id, volume_name, container_name, source_path, total_bytes, duration_ms)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- name: CreateStatsDrive :exec
+INSERT INTO stats_drive (batch_id, mountpoint, device, total_bytes, used_bytes, free_bytes, duration_ms)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: ListStatsVolumeByName :many
+SELECT * FROM stats_volume
+WHERE volume_name = ? AND captured_at >= ? AND captured_at <= ?
+ORDER BY captured_at;
+
+-- name: ListStatsDriveByMountpoint :many
+SELECT * FROM stats_drive
+WHERE mountpoint = ? AND captured_at >= ? AND captured_at <= ?
+ORDER BY captured_at;
+
+-- name: ListStatsApplication :many
+SELECT
+    s.captured_at,
+    s.container_name,
+    SUM(s.total_bytes) AS total_bytes
+FROM stats_volume s
+WHERE s.container_name = ? AND s.captured_at >= ? AND s.captured_at <= ?
+GROUP BY s.batch_id, s.container_name
+ORDER BY s.captured_at;
+
+-- name: DeleteOldStatsVolume :exec
+DELETE FROM stats_volume WHERE captured_at < ?;
+
+-- name: DeleteOldStatsDrive :exec
+DELETE FROM stats_drive WHERE captured_at < ?;
