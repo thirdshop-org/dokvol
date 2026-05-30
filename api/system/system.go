@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
-	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/moby/moby/client"
@@ -179,50 +176,15 @@ func (s *System) checkDokvolFolderHealth(drive DriveInfo) error {
 		)
 	}
 
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
+	testFile := filepath.Join(dokvolPath, ".write_test")
+	if err := os.WriteFile(testFile, []byte{}, 0600); err != nil {
 		return NewAPIError(
 			ErrDriveHealthCheck,
-			"cannot read syscall stats for dokvol folder",
-			nil,
-		)
-	}
-
-	currentUser, err := user.Lookup("dokvol")
-	if err != nil {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("cannot find dokvol system user: %s", err),
-			nil,
-		)
-	}
-
-	expectedUID, _ := strconv.Atoi(currentUser.Uid)
-	expectedGID, _ := strconv.Atoi(currentUser.Gid)
-
-	if int(stat.Uid) != expectedUID {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("dokvol folder owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID),
+			fmt.Sprintf("cannot write to dokvol folder: %s", err),
 			map[string]any{"path": dokvolPath},
 		)
 	}
-
-	if int(stat.Gid) != expectedGID {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("dokvol folder group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID),
-			map[string]any{"path": dokvolPath},
-		)
-	}
-
-	if info.Mode().Perm() != 0700 {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("dokvol folder permissions mismatch: got %o, expected %o", info.Mode().Perm(), 0700),
-			map[string]any{"path": dokvolPath},
-		)
-	}
+	os.Remove(testFile)
 
 	return nil
 }
@@ -262,42 +224,15 @@ func (s *System) checkDokvolMetadataHealth(drive DriveInfo) error {
 		)
 	}
 
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
+	testFile := filepath.Join(filepath.Dir(metadataPath), ".write_test")
+	if err := os.WriteFile(testFile, []byte{}, 0600); err != nil {
 		return NewAPIError(
 			ErrDriveHealthCheck,
-			"cannot read syscall stats for dokvol metadata file",
-			nil,
-		)
-	}
-
-	currentUser, err := user.Lookup("dokvol")
-	if err != nil {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("cannot find dokvol system user: %s", err),
-			nil,
-		)
-	}
-
-	expectedUID, _ := strconv.Atoi(currentUser.Uid)
-	expectedGID, _ := strconv.Atoi(currentUser.Gid)
-
-	if int(stat.Uid) != expectedUID {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("metadata file owner mismatch: got uid=%d, expected uid=%d", stat.Uid, expectedUID),
+			fmt.Sprintf("cannot write to dokvol folder: %s", err),
 			map[string]any{"path": metadataPath},
 		)
 	}
-
-	if int(stat.Gid) != expectedGID {
-		return NewAPIError(
-			ErrDriveHealthCheck,
-			fmt.Sprintf("metadata file group mismatch: got gid=%d, expected gid=%d", stat.Gid, expectedGID),
-			map[string]any{"path": metadataPath},
-		)
-	}
+	os.Remove(testFile)
 
 	if info.Mode().Perm() != 0600 {
 		return NewAPIError(
