@@ -1,0 +1,12 @@
+services:
+  sut:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+      - /dev:/dev
+    environment:
+      DOKVOL_DB_PATH: /tmp/dokvol-test.db

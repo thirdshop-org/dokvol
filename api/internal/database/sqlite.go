@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"os"
 
 	"dokvol/api/internal/db"
 	"dokvol/api/system"
@@ -18,7 +19,11 @@ type Database struct {
 }
 
 func Init() *Database {
-	conn, err := sql.Open("sqlite3", "./dokvol.db")
+	dbPath := os.Getenv("DOKVOL_DB_PATH")
+	if dbPath == "" {
+		dbPath = "./dokvol.db"
+	}
+	conn, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		panic(err)
 	}
