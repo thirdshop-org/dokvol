@@ -4,6 +4,7 @@
 	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { LoaderCircle, ArrowUpFromLine, History } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -268,14 +269,25 @@
 		}
 	}
 
-	function statusBadge(status: string): string {
-		switch (status) {
-			case 'completed': return 'badge badge-success';
-			case 'failed': return 'badge badge-destructive';
-			case 'running': case 'pending': return 'badge badge-running';
-			default: return 'badge';
+	function statusLabel(state: string): string {
+		try {
+			return $t(`container.status.${state}`);
+		} catch {
+			return state;
 		}
 	}
+
+	function statusClass(state: string): string {
+		switch (state) {
+			case 'running': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+			case 'exited': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+			case 'paused': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
+			case 'restarting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
+			case 'removing': case 'dead': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
+			default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
+		}
+	}
+
 </script>
 
 <div class="space-y-6">
@@ -295,6 +307,7 @@
 				<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
 					<h2 class="font-semibold">
 						{app.ContainerName.replace(/^\//, '')}
+						<Badge class={statusClass(app.Status)}>{statusLabel(app.Status)}</Badge>
 						{#if busy}
 							<span class="ml-2 inline-flex items-center gap-1 text-xs text-primary">
 								<LoaderCircle class="size-3 animate-spin" />
@@ -328,7 +341,7 @@
 						{#each app.Volumes as vol, i (i)}
 							<tr class="border-b last:border-0 hover:bg-muted/30">
 								<td class="px-4 py-2">
-									<span class="badge {vol.Type}">{vol.Type}</span>
+									<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'}>{vol.Type}</Badge>
 								</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Source}</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
@@ -356,7 +369,7 @@
 				{#each historyJobs as job (job.id)}
 					<div class="rounded-lg border p-3 text-sm">
 						<div class="flex items-center justify-between mb-2">
-							<span class={statusBadge(job.status)}>{job.status}</span>
+							<Badge variant={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'destructive' : 'running'}>{job.status}</Badge>
 							<span class="text-xs text-muted-foreground font-mono">{job.id.slice(0, 8)}…</span>
 						</div>
 						{#each job.volumes as vol}
@@ -542,52 +555,4 @@
 </Dialog.Root>
 
 <style>
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		border-radius: 9999px;
-		padding: 0.125rem 0.5rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-	}
-	.badge.volume {
-		background-color: #dbeafe;
-		color: #1e40af;
-	}
-	.badge.bind {
-		background-color: #fef3c7;
-		color: #92400e;
-	}
-	.badge-running {
-		background-color: #dbeafe;
-		color: #1e40af;
-	}
-	.badge-success {
-		background-color: #dcfce7;
-		color: #166534;
-	}
-	.badge-destructive {
-		background-color: #fef2f2;
-		color: #991b1b;
-	}
-	:global(.dark) .badge.volume {
-		background-color: #1e3a5f;
-		color: #bfdbfe;
-	}
-	:global(.dark) .badge.bind {
-		background-color: #5c3d0e;
-		color: #fde68a;
-	}
-	:global(.dark) .badge-running {
-		background-color: #1e3a5f;
-		color: #bfdbfe;
-	}
-	:global(.dark) .badge-success {
-		background-color: #14532d;
-		color: #bbf7d0;
-	}
-	:global(.dark) .badge-destructive {
-		background-color: #450a0a;
-		color: #fecaca;
-	}
 </style>

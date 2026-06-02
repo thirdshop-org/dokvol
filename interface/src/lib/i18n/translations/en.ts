@@ -62,6 +62,17 @@ const en = {
 			destination: "Destination",
 		},
 	},
+	container: {
+		status: {
+			running: "Running",
+			exited: "Exited",
+			paused: "Paused",
+			removing: "Removing",
+			restarting: "Restarting",
+			dead: "Dead",
+			created: "Created",
+		},
+	},
 	step: {
 		pending: "Pending",
 		stopping: "Stopping container",

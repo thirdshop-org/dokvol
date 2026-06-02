@@ -98,6 +98,7 @@ func (s *System) GetDockerContainers() []BasicContainerInfos {
 
 type ApplicationVolumes struct {
 	ContainerName string
+	Status        string
 	Volumes       []VolumeDetail
 }
 
@@ -143,6 +144,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 
 		applications = append(applications, ApplicationVolumes{
 			ContainerName: applicationName,
+			Status:        string(ctr.State),
 			Volumes:       volumesDetails,
 		})
 

@@ -28,6 +28,7 @@ export interface VolumeDetail {
 
 export interface ApplicationVolumes {
 	ContainerName: string;
+	Status: string;
 	Volumes: VolumeDetail[];
 }
 
