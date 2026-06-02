@@ -77,7 +77,7 @@
 		title={name}
 		data={data}
 		height="350px"
-		color="hsl(var(--chart-2))"
+		color="var(--chart-2)"
 		formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
 		formatY={(v: number) => formatBytes(v)}
 	/>

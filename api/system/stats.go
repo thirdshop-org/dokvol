@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"path/filepath"
 	"sync"
@@ -151,12 +150,11 @@ func (c *StatsCollector) pruneOldStats(ctx context.Context) {
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -atoi(days))
-	cutoffTime := sql.NullTime{Time: cutoff, Valid: true}
 
-	if err := c.db.DeleteOldStatsVolume(ctx, cutoffTime); err != nil {
+	if err := c.db.DeleteOldStatsVolume(ctx, cutoff); err != nil {
 		log.Printf("stats collector: prune volume stats: %s", err)
 	}
-	if err := c.db.DeleteOldStatsDrive(ctx, cutoffTime); err != nil {
+	if err := c.db.DeleteOldStatsDrive(ctx, cutoff); err != nil {
 		log.Printf("stats collector: prune drive stats: %s", err)
 	}
 

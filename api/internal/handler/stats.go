@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"database/sql"
 	"net/http"
 	"time"
 
@@ -55,8 +54,8 @@ func ListStatsVolume(c *gin.Context) {
 
 	rows, err := MigrationManager.Queries.ListStatsVolumeByName(c.Request.Context(), db.ListStatsVolumeByNameParams{
 		VolumeName:  name,
-		CapturedAt:  sql.NullTime{Time: from, Valid: true},
-		CapturedAt_2: sql.NullTime{Time: to, Valid: true},
+		CapturedAt:  from,
+		CapturedAt_2: to,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, system.NewAPIError("INTERNAL_ERROR", err.Error(), nil))
@@ -80,8 +79,8 @@ func ListStatsDrive(c *gin.Context) {
 
 	rows, err := MigrationManager.Queries.ListStatsDriveByMountpoint(c.Request.Context(), db.ListStatsDriveByMountpointParams{
 		Mountpoint:  mountpoint,
-		CapturedAt:  sql.NullTime{Time: from, Valid: true},
-		CapturedAt_2: sql.NullTime{Time: to, Valid: true},
+		CapturedAt:  from,
+		CapturedAt_2: to,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, system.NewAPIError("INTERNAL_ERROR", err.Error(), nil))
@@ -105,8 +104,8 @@ func ListStatsApplication(c *gin.Context) {
 
 	rows, err := MigrationManager.Queries.ListStatsApplication(c.Request.Context(), db.ListStatsApplicationParams{
 		ContainerName: name,
-		CapturedAt:    sql.NullTime{Time: from, Valid: true},
-		CapturedAt_2:  sql.NullTime{Time: to, Valid: true},
+		CapturedAt:    from,
+		CapturedAt_2:  to,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, system.NewAPIError("INTERNAL_ERROR", err.Error(), nil))

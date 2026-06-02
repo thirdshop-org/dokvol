@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createDrive = `-- name: CreateDrive :one
@@ -248,7 +249,7 @@ const deleteOldStatsDrive = `-- name: DeleteOldStatsDrive :exec
 DELETE FROM stats_drive WHERE captured_at < ?
 `
 
-func (q *Queries) DeleteOldStatsDrive(ctx context.Context, capturedAt sql.NullTime) error {
+func (q *Queries) DeleteOldStatsDrive(ctx context.Context, capturedAt time.Time) error {
 	_, err := q.db.ExecContext(ctx, deleteOldStatsDrive, capturedAt)
 	return err
 }
@@ -257,7 +258,7 @@ const deleteOldStatsVolume = `-- name: DeleteOldStatsVolume :exec
 DELETE FROM stats_volume WHERE captured_at < ?
 `
 
-func (q *Queries) DeleteOldStatsVolume(ctx context.Context, capturedAt sql.NullTime) error {
+func (q *Queries) DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error {
 	_, err := q.db.ExecContext(ctx, deleteOldStatsVolume, capturedAt)
 	return err
 }
@@ -555,13 +556,13 @@ ORDER BY s.captured_at
 `
 
 type ListStatsApplicationParams struct {
-	ContainerName string       `json:"container_name"`
-	CapturedAt    sql.NullTime `json:"captured_at"`
-	CapturedAt_2  sql.NullTime `json:"captured_at_2"`
+	ContainerName string    `json:"container_name"`
+	CapturedAt    time.Time `json:"captured_at"`
+	CapturedAt_2  time.Time `json:"captured_at_2"`
 }
 
 type ListStatsApplicationRow struct {
-	CapturedAt    sql.NullTime    `json:"captured_at"`
+	CapturedAt    time.Time       `json:"captured_at"`
 	ContainerName string          `json:"container_name"`
 	TotalBytes    sql.NullFloat64 `json:"total_bytes"`
 }
@@ -596,9 +597,9 @@ ORDER BY captured_at
 `
 
 type ListStatsDriveByMountpointParams struct {
-	Mountpoint   string       `json:"mountpoint"`
-	CapturedAt   sql.NullTime `json:"captured_at"`
-	CapturedAt_2 sql.NullTime `json:"captured_at_2"`
+	Mountpoint   string    `json:"mountpoint"`
+	CapturedAt   time.Time `json:"captured_at"`
+	CapturedAt_2 time.Time `json:"captured_at_2"`
 }
 
 func (q *Queries) ListStatsDriveByMountpoint(ctx context.Context, arg ListStatsDriveByMountpointParams) ([]StatsDrive, error) {
@@ -641,9 +642,9 @@ ORDER BY captured_at
 `
 
 type ListStatsVolumeByNameParams struct {
-	VolumeName   string       `json:"volume_name"`
-	CapturedAt   sql.NullTime `json:"captured_at"`
-	CapturedAt_2 sql.NullTime `json:"captured_at_2"`
+	VolumeName   string    `json:"volume_name"`
+	CapturedAt   time.Time `json:"captured_at"`
+	CapturedAt_2 time.Time `json:"captured_at_2"`
 }
 
 func (q *Queries) ListStatsVolumeByName(ctx context.Context, arg ListStatsVolumeByNameParams) ([]StatsVolume, error) {

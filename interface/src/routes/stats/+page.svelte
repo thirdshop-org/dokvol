@@ -140,7 +140,7 @@
 								</Card.Description>
 							</Card.Header>
 							<Card.Content>
-								<Sparkline data={chart.data.map(d => ({ value: d.value }))} width={200} height={40} color="hsl(var(--chart-2))" />
+								<Sparkline data={chart.data.map(d => ({ value: d.value }))} width={200} height={40} color="var(--chart-2)" />
 							</Card.Content>
 						</Card.Root>
 					</a>
@@ -160,7 +160,7 @@
 							title={chart.name}
 							data={chart.data}
 							height="180px"
-							color="hsl(var(--chart-3))"
+							color="var(--chart-3)"
 							formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
 							formatY={(v: number) => formatBytes(v)}
 						/>

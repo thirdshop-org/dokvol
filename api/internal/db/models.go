@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Drive struct {
@@ -43,31 +44,31 @@ type MigrationVolumeProgress struct {
 }
 
 type StatsBatch struct {
-	ID         int64        `json:"id"`
-	CapturedAt sql.NullTime `json:"captured_at"`
+	ID         int64     `json:"id"`
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 type StatsDrive struct {
-	ID         int64        `json:"id"`
-	BatchID    int64        `json:"batch_id"`
-	Mountpoint string       `json:"mountpoint"`
-	Device     string       `json:"device"`
-	TotalBytes int64        `json:"total_bytes"`
-	UsedBytes  int64        `json:"used_bytes"`
-	FreeBytes  int64        `json:"free_bytes"`
-	DurationMs int64        `json:"duration_ms"`
-	CapturedAt sql.NullTime `json:"captured_at"`
+	ID         int64     `json:"id"`
+	BatchID    int64     `json:"batch_id"`
+	Mountpoint string    `json:"mountpoint"`
+	Device     string    `json:"device"`
+	TotalBytes int64     `json:"total_bytes"`
+	UsedBytes  int64     `json:"used_bytes"`
+	FreeBytes  int64     `json:"free_bytes"`
+	DurationMs int64     `json:"duration_ms"`
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 type StatsVolume struct {
-	ID            int64        `json:"id"`
-	BatchID       int64        `json:"batch_id"`
-	VolumeName    string       `json:"volume_name"`
-	ContainerName string       `json:"container_name"`
-	SourcePath    string       `json:"source_path"`
-	TotalBytes    int64        `json:"total_bytes"`
-	DurationMs    int64        `json:"duration_ms"`
-	CapturedAt    sql.NullTime `json:"captured_at"`
+	ID            int64     `json:"id"`
+	BatchID       int64     `json:"batch_id"`
+	VolumeName    string    `json:"volume_name"`
+	ContainerName string    `json:"container_name"`
+	SourcePath    string    `json:"source_path"`
+	TotalBytes    int64     `json:"total_bytes"`
+	DurationMs    int64     `json:"duration_ms"`
+	CapturedAt    time.Time `json:"captured_at"`
 }
 
 type UserPreference struct {

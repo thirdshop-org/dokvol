@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Point { value: number }
-	let { data = [] as Point[], width = 80, height = 30, color = "hsl(var(--chart-1))" }: {
+	let { data = [] as Point[], width = 80, height = 30, 	color = "var(--chart-1)" }: {
 		data: Point[];
 		width?: number;
 		height?: number;

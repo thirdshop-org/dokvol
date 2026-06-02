@@ -6,7 +6,7 @@ package db
 
 import (
 	"context"
-	"database/sql"
+	"time"
 )
 
 type Querier interface {
@@ -19,8 +19,8 @@ type Querier interface {
 	CreateVolumeDrive(ctx context.Context, arg CreateVolumeDriveParams) (VolumeDrive, error)
 	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
 	DeleteDrive(ctx context.Context, id int64) error
-	DeleteOldStatsDrive(ctx context.Context, capturedAt sql.NullTime) error
-	DeleteOldStatsVolume(ctx context.Context, capturedAt sql.NullTime) error
+	DeleteOldStatsDrive(ctx context.Context, capturedAt time.Time) error
+	DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error
 	DeleteVolume(ctx context.Context, id int64) error
 	DeleteVolumeDrive(ctx context.Context, id int64) error
 	GetDrive(ctx context.Context, id int64) (Drive, error)

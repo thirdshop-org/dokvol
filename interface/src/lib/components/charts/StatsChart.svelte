@@ -16,7 +16,7 @@
 		data = [] as DataPoint[],
 		formatX = (v: Date) => v.toLocaleDateString(),
 		formatY = (v: number) => v.toLocaleString(),
-		color = "hsl(var(--chart-1))",
+		color = "var(--chart-1)",
 		height = "250px",
 	}: {
 		title?: string;
@@ -33,7 +33,7 @@
 	} satisfies Chart.ChartConfig);
 
 	const series = $derived([
-		{ key: "value" as const, label: chartConfig.value.label, color: chartConfig.value.color },
+		{ key: "value" as const, value: "value" as const, label: chartConfig.value.label, color: chartConfig.value.color },
 	]);
 </script>
 
@@ -47,12 +47,13 @@
 			<LineChart
 				data={data}
 				x="date"
+				y="value"
 				xScale={scaleUtc()}
-				axis="x"
 				series={series}
 				props={{
 					spline: { curve: curveNatural, motion: "tween", strokeWidth: 2 },
 					xAxis: { format: formatX },
+					yAxis: { format: formatY },
 					highlight: { points: { r: 4 } },
 				}}
 			>

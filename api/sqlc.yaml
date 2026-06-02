@@ -11,3 +11,10 @@ sql:
         emit_json_tags: true
         emit_prepared_queries: false
         emit_interface: true
+        overrides:
+          - column: "stats_drive.captured_at"
+            go_type: "time.Time"
+          - column: "stats_volume.captured_at"
+            go_type: "time.Time"
+          - column: "stats_batch.captured_at"
+            go_type: "time.Time"
