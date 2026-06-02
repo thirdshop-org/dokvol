@@ -550,7 +550,7 @@
 				{$t('applications.migration.cancel')}
 			</Button>
 			{#if !currentJobId}
-				<Button onclick={handleMigrate} disabled={migrating}>
+				<Button onclick={handleMigrate} disabled={migrating || !volumes.some(v => v.IsMigratable && v.checked)}>
 					{#if migrating}<LoaderCircle class="size-4 animate-spin" />{/if}
 					{$t('applications.migration.migrate')}
 				</Button>
