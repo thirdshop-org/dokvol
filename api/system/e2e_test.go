@@ -429,7 +429,116 @@ func TestE2E_FullApplication(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Error handling: OOM / same-drive / rollback
+// 3. Multi-drive: each volume to a different physical drive
+// ---------------------------------------------------------------------------
+
+func TestE2E_MultiDrive(t *testing.T) {
+	ctx := context.Background()
+	cli := dockerClient(t)
+	pullImage(t, alpineImage)
+
+	suffix := uuid.New().String()[:8]
+	ctrName := "/e2e-multi-ctr-" + suffix
+	volNames := []string{
+		"e2e-multi-vol-a-" + suffix,
+		"e2e-multi-vol-b-" + suffix,
+	}
+
+	for _, v := range volNames {
+		createVolume(t, cli, v)
+	}
+	createContainer(t, cli, ctrName, alpineImage,
+		[]mount.Mount{
+			{Type: mount.TypeVolume, Source: volNames[0], Target: "/data/a"},
+			{Type: mount.TypeVolume, Source: volNames[1], Target: "/data/b"},
+		},
+		[]string{"sleep", "9999"},
+	)
+	startContainer(t, cli, ctrName)
+	waitContainerRunning(t, cli, ctrName)
+	writeData(t, cli, ctrName, "/data/a/data.bin", 10)
+	writeData(t, cli, ctrName, "/data/b/data.bin", 20)
+
+	driveMount1 := createLoopDrive(t, 100)
+	drive1 := waitForDrive(t, driveMount1)
+	driveMount2 := createLoopDrive(t, 200)
+	drive2 := waitForDrive(t, driveMount2)
+
+	app := waitForApp(t, ctrName)
+	if len(app.DockerVolumes) != 2 {
+		t.Fatalf("expected 2 volumes, got %d", len(app.DockerVolumes))
+	}
+
+	volOpts := []ApplicationVolumeOptions{
+		{VolumeDetail: app.DockerVolumes[0], DestinationDrive: *drive1},
+		{VolumeDetail: app.DockerVolumes[1], DestinationDrive: *drive2},
+	}
+
+	db := initTestDB(t)
+	mm := NewMigrationManager(db)
+
+	jobID, err := mm.StartJob(ctx, app.Name, *app, volOpts)
+	if err != nil {
+		t.Fatalf("StartJob: %v", err)
+	}
+	t.Logf("job %s started", jobID)
+
+	job := pollJob(t, mm, jobID, 120*time.Second)
+	if job.Status != JobCompleted {
+		t.Fatalf("expected completed, got %s (volumes: %+v)", job.Status, job.Volumes)
+	}
+	if len(job.Volumes) != 2 {
+		t.Fatalf("expected 2 volumes, got %d", len(job.Volumes))
+	}
+	for i := range job.Volumes {
+		if job.Volumes[i].Step != StepCompleted {
+			t.Fatalf("volume %s step %s, expected completed", job.Volumes[i].VolumeName, job.Volumes[i].Step)
+		}
+		if job.Volumes[i].Transferred == 0 {
+			t.Fatalf("volume %s Transferred == 0", job.Volumes[i].VolumeName)
+		}
+	}
+	if job.Volumes[0].DestDrive != driveMount1 {
+		t.Fatalf("vol0 dest drive %s, expected %s", job.Volumes[0].DestDrive, driveMount1)
+	}
+	if job.Volumes[1].DestDrive != driveMount2 {
+		t.Fatalf("vol1 dest drive %s, expected %s", job.Volumes[1].DestDrive, driveMount2)
+	}
+
+	// Volume 0 → drive1
+	source0 := app.DockerVolumes[0].Source
+	target0 := symlinkTarget(t, source0)
+	if target0 == "" {
+		t.Fatalf("vol0 source %s is not a symlink", source0)
+	}
+	if !strings.HasPrefix(target0, driveMount1) {
+		t.Fatalf("vol0 symlink %s -> %s does not point to drive %s", source0, target0, driveMount1)
+	}
+	t.Logf("vol0 symlink: %s -> %s", source0, target0)
+
+	// Volume 1 → drive2
+	source1 := app.DockerVolumes[1].Source
+	target1 := symlinkTarget(t, source1)
+	if target1 == "" {
+		t.Fatalf("vol1 source %s is not a symlink", source1)
+	}
+	if !strings.HasPrefix(target1, driveMount2) {
+		t.Fatalf("vol1 symlink %s -> %s does not point to drive %s", source1, target1, driveMount2)
+	}
+	t.Logf("vol1 symlink: %s -> %s", source1, target1)
+
+	// Container should still be running
+	info, err := cli.ContainerInspect(ctx, ctrName, client.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	if info.Container.State.Status != "running" {
+		t.Fatalf("container status %s, expected running", info.Container.State.Status)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 4. Error handling: OOM / same-drive / rollback
 // ---------------------------------------------------------------------------
 
 func TestE2E_ErrorHandling(t *testing.T) {
@@ -574,7 +683,7 @@ func TestE2E_ErrorHandling(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Partial failure: 2 volumes, first succeeds, second fails mid-migration
+// 5. Partial failure: 2 volumes, first succeeds, second fails mid-migration
 // ---------------------------------------------------------------------------
 
 func TestE2E_PartialFailure(t *testing.T) {
