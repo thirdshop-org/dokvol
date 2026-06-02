@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 )
 
@@ -226,7 +225,7 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 
 		found := false
 		for _, appVol := range app.DockerVolumes {
-			if provided.VolumeDetail == appVol {
+			if provided.VolumeDetail.Source == appVol.Source {
 				found = true
 				break
 			}
@@ -249,7 +248,7 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 
 		covered := false
 		for _, provided := range *volumes {
-			if provided.VolumeDetail == appVol {
+			if appVol.Source == provided.VolumeDetail.Source {
 				covered = true
 				break
 			}
@@ -272,7 +271,7 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 
 		driveExists := false
 		for _, drive := range s.Drives {
-			if provided.DestinationDrive == drive {
+			if provided.DestinationDrive.Device == drive.Device {
 				driveExists = true
 				break
 			}
@@ -294,7 +293,7 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 
 		sourceDrive := s.getDriveForPath(provided.VolumeDetail.Source)
 
-		if sourceDrive != nil && *sourceDrive == provided.DestinationDrive {
+		if sourceDrive != nil && sourceDrive.Device == provided.DestinationDrive.Device {
 			return NewAPIError(
 				ErrMigrationSameDrive,
 				fmt.Sprintf("volume '%s' is already on drive '%s'", provided.VolumeDetail.Name, provided.DestinationDrive.Device),
@@ -341,60 +340,41 @@ func (s *System) relink(sourcePath, destPath string) error {
 }
 
 func (s *System) stopContainer(appName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	ctx := context.Background()
+	// docker kill sends SIGKILL immediately (sleep in busybox ignores SIGTERM)
+	killCmd := exec.CommandContext(ctx, "docker", "kill", appName)
+	if _, err := killCmd.CombinedOutput(); err != nil {
+		// container might already be stopped
+	}
 
-	// Timeout avant kill forcé
-	timeout := 30 // secondes
-
-	if _, err := s.docker.ContainerStop(ctx, appName, client.ContainerStopOptions{
-		Timeout: &timeout,
-	}); err != nil {
+	// Wait for container to fully exit
+	waitCmd := exec.CommandContext(ctx, "docker", "wait", appName)
+	out, err := waitCmd.CombinedOutput()
+	if err != nil {
 		return NewAPIError(
 			ErrContainerStopFailed,
-			fmt.Sprintf("failed to stop container '%s': %s", appName, err),
+			fmt.Sprintf("failed to stop container '%s': %s\n%s", appName, err, out),
 			map[string]any{"container": appName},
 		)
 	}
-
-	// Attendre que le conteneur soit vraiment arrêté
-	result := s.docker.ContainerWait(ctx, appName, client.ContainerWaitOptions{
-		Condition: container.WaitConditionNotRunning,
-	})
-
-	select {
-	case err := <-result.Error:
-		if err != nil {
-			return NewAPIError(
-				ErrContainerStopFailed,
-				fmt.Sprintf("error waiting for container stop: %s", err),
-				map[string]any{"container": appName},
-			)
-		}
-	case <-result.Result:
-		// OK
-	}
-
 	return nil
 }
 
 func (s *System) startContainer(appName string) error {
-
-	ctx := context.Background()
-
-	if _, err := s.docker.ContainerStart(ctx, appName, client.ContainerStartOptions{}); err != nil {
+	cmd := exec.Command("docker", "start", appName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
 		return NewAPIError(
 			ErrContainerStartFailed,
-			fmt.Sprintf("failed to start container '%s': %s", appName, err),
+			fmt.Sprintf("failed to start container '%s': %s\n%s", appName, err, out),
 			map[string]any{"container": appName},
 		)
 	}
-
-	// Attendre que le conteneur soit healthy ou running
 	if err := s.waitForContainer(appName); err != nil {
 		return fmt.Errorf("container started but not healthy: %w", err)
 	}
-
 	return nil
 }
 
@@ -444,6 +424,11 @@ func (s *System) waitForContainer(appName string) error {
 
 // Trouver le drive d'un path donné
 func (s *System) getDriveForPath(path string) *DriveInfo {
+
+	// Resolve symlinks so that migrated volumes (symlink → loop drive) are detected
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
 
 	var bestMatch *DriveInfo
 	bestLen := 0

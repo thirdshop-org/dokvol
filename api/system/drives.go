@@ -29,7 +29,6 @@ func GetDrives() []DriveInfo {
 
 	for _, p := range partitions {
 		// 2. FILTRAGE : On ignore ce qui n'est pas intéressant pour Docker
-		isLoop := strings.Contains(p.Device, "loop")
 		isBoot := strings.HasPrefix(p.Mountpoint, "/boot")
 		isEFI := strings.HasPrefix(p.Mountpoint, "/efi")
 
@@ -37,7 +36,7 @@ func GetDrives() []DriveInfo {
 		// On peut ajouter "btrfs", "xfs", "zfs" selon ton besoin
 		isValidFS := p.Fstype == "ext4" || p.Fstype == "xfs" || p.Fstype == "btrfs"
 
-		if !isLoop && !isBoot && !isEFI && isValidFS {
+		if !isBoot && !isEFI && isValidFS {
 			// 3. On récupère l'usage spécifique à CE point de montage
 			usage, err := disk.Usage(p.Mountpoint)
 			if err != nil {
@@ -57,5 +56,6 @@ func GetDrives() []DriveInfo {
 			driveList = append(driveList, info)
 		}
 	}
+
 	return driveList
 }
