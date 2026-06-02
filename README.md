@@ -54,23 +54,6 @@ Voici ta feuille de route (Roadmap) pour transformer cette idée en un projet de
 ### Phase 4 : L'Interface DokVol (Style Dokploy)
 *Objectif : Rendre le projet "Senior-ready" visuellement.*
 *   **Dashboard :** Visualisation graphique des disques (camemberts de remplissage).
-*   **Drag & Drop :** "Glisser" un service d'un disque vers un autre pour déclencher la migration.
 *   **API REST :** Permettre à Dokploy (ou d'autres outils) d'appeler DokVol via des endpoints sécurisés.
 
 ---
-
-## 4. Les "Must-Have" (Critères de qualité Senior)
-
-1.  **Safety First :** Ne jamais supprimer les données sources avant que la destination ne soit confirmée à 100%.
-2.  **Concurrency :** Utiliser les *Goroutines* pour scanner plusieurs disques en même temps sans bloquer l'UI.
-3.  **Logging Propre :** Utiliser une librairie comme `zerolog` ou `slog` pour avoir des logs structurés en JSON (facile à lire pour d'autres outils).
-4.  **Tests Unitaires :** Tester la logique de calcul de taille et de gestion des symlinks (très important pour un outil système).
-
----
-
-## 5. Pourquoi ce projet va booster ton CV ?
-
-*   **Maîtrise système :** Tu prouves que tu sais gérer les systèmes de fichiers (FS), les permissions Linux et les points de montage.
-*   **Écosystème Docker :** Tu montres une expertise profonde du moteur Docker, au-delà du simple `docker-compose up`.
-*   **Fiabilité :** Déplacer des données de production est la tâche la plus stressante d'un DevOps. Si ton outil le fait de manière sûre, tu gagnes une crédibilité immense.
-
