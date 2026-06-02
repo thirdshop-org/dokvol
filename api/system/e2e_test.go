@@ -581,6 +581,72 @@ func TestE2E_ErrorHandling(t *testing.T) {
 		}
 	})
 
+	t.Run("insufficient_space_on_one_drive", func(t *testing.T) {
+		suffix := uuid.New().String()[:8]
+		volNameA := "e2e-spc-vol-a-" + suffix
+		volNameB := "e2e-spc-vol-b-" + suffix
+		ctrName := "/e2e-spc-ctr-" + suffix
+
+		createVolume(t, cli, volNameA)
+		createVolume(t, cli, volNameB)
+		createContainer(t, cli, ctrName, alpineImage,
+			[]mount.Mount{
+				{Type: mount.TypeVolume, Source: volNameA, Target: "/data/a"},
+				{Type: mount.TypeVolume, Source: volNameB, Target: "/data/b"},
+			},
+			[]string{"sleep", "9999"},
+		)
+		startContainer(t, cli, ctrName)
+		waitContainerRunning(t, cli, ctrName)
+		writeData(t, cli, ctrName, "/data/a/data.bin", 10)
+		writeData(t, cli, ctrName, "/data/b/large.bin", 150)
+
+		driveMount1 := createLoopDrive(t, 500) // plenty for 10MB
+		drive1 := waitForDrive(t, driveMount1)
+		driveMount2 := createLoopDrive(t, 80) // not enough for 150MB
+		drive2 := waitForDrive(t, driveMount2)
+
+		app := waitForApp(t, ctrName)
+		if len(app.DockerVolumes) != 2 {
+			t.Fatalf("expected 2 volumes, got %d", len(app.DockerVolumes))
+		}
+
+		db := initTestDB(t)
+		mm := NewMigrationManager(db)
+		volOpts := []ApplicationVolumeOptions{
+			{VolumeDetail: app.DockerVolumes[0], DestinationDrive: *drive1},
+			{VolumeDetail: app.DockerVolumes[1], DestinationDrive: *drive2},
+		}
+
+		jobID, err := mm.StartJob(ctx, app.Name, *app, volOpts)
+		if err != nil {
+			t.Fatalf("StartJob: %v", err)
+		}
+		job := pollJob(t, mm, jobID, 30*time.Second)
+		if job.Status != JobFailed {
+			t.Fatalf("expected job failed, got %s", job.Status)
+		}
+		if len(job.Volumes) == 0 || !strings.Contains(job.Volumes[0].Error, "not enough space") {
+			t.Fatalf("expected disk space error, got: %+v", job.Volumes)
+		}
+
+		// Container must still be running
+		info, err := cli.ContainerInspect(ctx, ctrName, client.ContainerInspectOptions{})
+		if err != nil {
+			t.Fatalf("inspect: %v", err)
+		}
+		if info.Container.State.Status != "running" {
+			t.Fatalf("container not running, status: %s", info.Container.State.Status)
+		}
+
+		// No symlinks — nothing was migrated
+		for _, v := range app.DockerVolumes {
+			if target := symlinkTarget(t, v.Source); target != "" {
+				t.Fatalf("source is a symlink after failed migration: %s -> %s", v.Source, target)
+			}
+		}
+	})
+
 	t.Run("same_drive", func(t *testing.T) {
 		suffix := uuid.New().String()[:8]
 		volName := "e2e-same-vol-" + suffix
