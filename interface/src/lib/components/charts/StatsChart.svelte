@@ -18,6 +18,7 @@
 		formatY = (v: number) => v.toLocaleString(),
 		color = "var(--chart-1)",
 		height = "250px",
+		xDomain = undefined,
 	}: {
 		title?: string;
 		description?: string;
@@ -26,6 +27,7 @@
 		formatY?: (v: number) => string;
 		color?: string;
 		height?: string;
+		xDomain?: [Date, Date];
 	} = $props();
 
 	const chartConfig = $derived({
@@ -48,6 +50,7 @@
 				data={data}
 				x="date"
 				y="value"
+				{xDomain}
 				xScale={scaleUtc()}
 				series={series}
 				props={{

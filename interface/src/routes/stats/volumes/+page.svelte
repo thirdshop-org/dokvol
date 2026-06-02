@@ -26,6 +26,13 @@
 		return d.toISOString();
 	}
 
+	const dateRange = $derived.by(() => {
+		const to = new Date();
+		const from = new Date();
+		from.setDate(from.getDate() - rangeDays(selectedRange));
+		return [from, to] as [Date, Date];
+	});
+
 	async function load() {
 		ready = false;
 		const from = toISO(rangeDays(selectedRange));
@@ -78,6 +85,7 @@
 		data={data}
 		height="350px"
 		color="var(--chart-2)"
+		xDomain={dateRange}
 		formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
 		formatY={(v: number) => formatBytes(v)}
 	/>

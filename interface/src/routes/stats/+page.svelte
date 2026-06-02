@@ -22,6 +22,13 @@
 		return 365;
 	}
 
+	const dateRange = $derived.by(() => {
+		const to = new Date();
+		const from = new Date();
+		from.setDate(from.getDate() - rangeDays(selectedRange));
+		return [from, to] as [Date, Date];
+	});
+
 	function toISO(daysAgo: number): string {
 		const d = new Date();
 		d.setDate(d.getDate() - daysAgo);
@@ -116,6 +123,7 @@
 							description={chart.device}
 							data={chart.data}
 							height="180px"
+							xDomain={dateRange}
 							formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
 							formatY={(v: number) => formatBytes(v)}
 						/>
@@ -161,6 +169,7 @@
 							data={chart.data}
 							height="180px"
 							color="var(--chart-3)"
+							xDomain={dateRange}
 							formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
 							formatY={(v: number) => formatBytes(v)}
 						/>
