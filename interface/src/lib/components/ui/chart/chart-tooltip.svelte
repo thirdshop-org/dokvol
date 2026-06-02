@@ -23,6 +23,7 @@
 		formatter,
 		nameKey,
 		color,
+		valueFormatter,
 		...restProps
 	}: WithoutChildren<WithElementRef<HTMLAttributes<HTMLDivElement>>> & {
 		hideLabel?: boolean;
@@ -45,6 +46,7 @@
 				},
 			]
 		>;
+		valueFormatter?: (value: unknown) => string;
 	} = $props();
 
 	const chart = useChart();
@@ -172,7 +174,7 @@
 							</div>
 							{#if item.value !== undefined}
 								<span class="text-foreground font-mono font-medium tabular-nums">
-									{item.value.toLocaleString()}
+									{valueFormatter ? valueFormatter(item.value) : item.value.toLocaleString()}
 								</span>
 							{/if}
 						</div>

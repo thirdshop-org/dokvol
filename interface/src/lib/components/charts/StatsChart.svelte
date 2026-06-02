@@ -61,7 +61,7 @@
 				}}
 			>
 				{#snippet tooltip()}
-					<Chart.Tooltip />
+					<Chart.Tooltip valueFormatter={(v) => formatY(v as number)} />
 				{/snippet}
 			</LineChart>
 		</Chart.Container>
