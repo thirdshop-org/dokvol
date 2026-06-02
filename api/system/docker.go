@@ -17,6 +17,7 @@ type VolumeDetail struct {
 	Source        string // Chemin sur le serveur (ex: /var/lib/docker/volumes/...)
 	Destination   string // Chemin dans le conteneur (ex: /var/www/html)
 	SystemDrive   *DriveInfo
+	IsMigratable  bool
 }
 
 func (s *System) GetDockerVolumes() []VolumeDetail {
@@ -52,6 +53,7 @@ func (s *System) GetDockerVolumes() []VolumeDetail {
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
+				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs",
 			}
 
 			results = append(results, detail)
@@ -136,6 +138,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
+				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs",
 			}
 
 			volumesDetails = append(volumesDetails, detail)

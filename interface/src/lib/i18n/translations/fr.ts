@@ -88,6 +88,7 @@ const fr = {
 		description: "Conteneurs Docker et leurs volumes montés.",
 		loading: "Chargement…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		inMemory: "en mémoire — migration impossible",
 		history: "Historique",
 		migrate: "Migrer",
 		migration: {

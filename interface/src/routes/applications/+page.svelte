@@ -47,6 +47,7 @@
 	type VolumeRow = {
 		name: string;
 		source: string;
+		IsMigratable: boolean;
 		checked: boolean;
 		destination: string;
 	};
@@ -153,7 +154,8 @@
 		volumes = app.Volumes.map((v: VolumeDetail) => ({
 			name: v.Name || v.Source.split('/').pop() || 'unknown',
 			source: v.Source,
-			checked: true,
+			IsMigratable: v.IsMigratable,
+			checked: v.IsMigratable,
 			destination: '',
 		}));
 		getDrives().then((d) => (drives = d));
@@ -201,13 +203,14 @@
 	}
 
 	function allChecked() {
-		return volumes.length > 0 && volumes.every((v) => v.checked);
+		const checkable = volumes.filter(v => v.IsMigratable);
+		return checkable.length > 0 && checkable.every((v) => v.checked);
 	}
 
 	function toggleAll() {
 		const newVal = !allChecked();
 		for (const v of volumes) {
-			v.checked = newVal;
+			if (v.IsMigratable) v.checked = newVal;
 		}
 	}
 
@@ -341,7 +344,11 @@
 						{#each app.Volumes as vol, i (i)}
 							<tr class="border-b last:border-0 hover:bg-muted/30">
 								<td class="px-4 py-2">
-									<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'}>{vol.Type}</Badge>
+									{#if !vol.IsMigratable}
+										<Badge class="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100">{vol.Type} — {$t('applications.inMemory')}</Badge>
+									{:else}
+										<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'}>{vol.Type}</Badge>
+									{/if}
 								</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Source}</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
@@ -496,18 +503,23 @@
 						</Table.Header>
 						<Table.Body>
 							{#each volumes as vol, i (vol.name)}
-								<Table.Row>
+								<Table.Row class={!vol.IsMigratable ? 'opacity-50' : ''}>
 									<Table.Cell>
-										<Checkbox.Root bind:checked={volumes[i].checked} disabled={migrating} />
+										<Checkbox.Root bind:checked={volumes[i].checked} disabled={migrating || !vol.IsMigratable} />
 									</Table.Cell>
-									<Table.Cell class="font-medium">{vol.name}</Table.Cell>
+									<Table.Cell class="font-medium">
+										{vol.name}
+										{#if !vol.IsMigratable}
+											<span class="ml-1 text-xs text-muted-foreground">({$t('applications.inMemory')})</span>
+										{/if}
+									</Table.Cell>
 									<Table.Cell class="hidden sm:table-cell font-mono text-xs text-muted-foreground max-w-48 truncate">{vol.source}</Table.Cell>
 									<Table.Cell>
 										<select
 											class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-xs shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 											value={vol.destination}
 											onchange={(e) => handleRowDestChange(i, (e.target as HTMLSelectElement).value)}
-											disabled={migrating}
+											disabled={migrating || !vol.IsMigratable}
 										>
 											<option value="" disabled>{$t('applications.migration.select')}</option>
 											{#each drives as drive (drive.mountpoint)}

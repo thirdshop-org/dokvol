@@ -24,6 +24,7 @@ export interface VolumeDetail {
 	Source: string;
 	Destination: string;
 	SystemDrive: DriveInfo | null;
+	IsMigratable: boolean;
 }
 
 export interface ApplicationVolumes {

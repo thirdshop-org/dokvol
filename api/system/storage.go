@@ -40,6 +40,9 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 
 	// 3. Migrer
 	for _, vol := range *volumes {
+		if !vol.VolumeDetail.IsMigratable {
+			continue
+		}
 		if err := s.migrateVolume(*app, vol, opts); err != nil {
 			return fmt.Errorf("migrate volume '%s': %w", vol.VolumeDetail.Name, err)
 		}
@@ -164,6 +167,9 @@ func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[
 		var volumes []ApplicationVolumeOptions
 
 		for _, vol := range app.DockerVolumes {
+			if !vol.IsMigratable {
+				continue
+			}
 			volumes = append(volumes, ApplicationVolumeOptions{
 				VolumeDetail:     vol,
 				DestinationDrive: *opts.DefaultDestinationDrive,
@@ -220,11 +226,36 @@ func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[
 
 func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolumeOptions) error {
 
+	// Construire la liste des volumes réellement migrables de l'app
+	migratableAppVols := make([]VolumeDetail, 0, len(app.DockerVolumes))
+	for _, v := range app.DockerVolumes {
+		if v.IsMigratable {
+			migratableAppVols = append(migratableAppVols, v)
+		}
+	}
+
+	if len(*volumes) < len(migratableAppVols) {
+		return NewAPIError(
+			ErrMigrationVolMismatch,
+			fmt.Sprintf("volume count mismatch: got %d, expected at least %d",
+				len(*volumes),
+				len(migratableAppVols),
+			),
+			map[string]any{
+				"provided": len(*volumes),
+				"expected": len(migratableAppVols),
+			},
+		)
+	}
+
 	// 1. Vérifier que chaque volume fourni correspond à un volume de l'app
 	for _, provided := range *volumes {
+		if !provided.VolumeDetail.IsMigratable {
+			continue
+		}
 
 		found := false
-		for _, appVol := range app.DockerVolumes {
+		for _, appVol := range migratableAppVols {
 			if provided.VolumeDetail.Source == appVol.Source {
 				found = true
 				break
@@ -243,11 +274,14 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 		}
 	}
 
-	// 2. Vérifier que chaque volume de l'app est couvert
-	for _, appVol := range app.DockerVolumes {
+	// 2. Vérifier que chaque volume migrable de l'app est couvert
+	for _, appVol := range migratableAppVols {
 
 		covered := false
 		for _, provided := range *volumes {
+			if !provided.VolumeDetail.IsMigratable {
+				continue
+			}
 			if appVol.Source == provided.VolumeDetail.Source {
 				covered = true
 				break
@@ -268,6 +302,9 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 
 	// 3. Vérifier que les drives de destination existent dans le système
 	for _, provided := range *volumes {
+		if !provided.VolumeDetail.IsMigratable {
+			continue
+		}
 
 		driveExists := false
 		for _, drive := range s.Drives {
@@ -451,6 +488,9 @@ func (s *System) checkDiskSpace(volumes *[]ApplicationVolumeOptions) error {
 	spaceNeeded := make(map[string]int64) // mountpoint → bytes
 
 	for _, vol := range *volumes {
+		if !vol.VolumeDetail.IsMigratable {
+			continue
+		}
 		size, err := dirSize(vol.VolumeDetail.Source)
 		if err != nil {
 			return fmt.Errorf("failed to get size of '%s': %w", vol.VolumeDetail.Source, err)

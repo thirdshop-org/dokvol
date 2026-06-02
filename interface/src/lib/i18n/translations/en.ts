@@ -88,6 +88,7 @@ const en = {
 		description: "Docker containers and their mounted volumes.",
 		loading: "Loading…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		inMemory: "in-memory — cannot be migrated",
 		history: "History",
 		migrate: "Migrate",
 		migration: {
