@@ -20,30 +20,32 @@ type DriveInfo struct {
 func GetDrives() []DriveInfo {
 	var driveList []DriveInfo
 
-	// 1. On récupère toutes les partitions
-	partitions, err := disk.Partitions(false)
+	// 1. On récupère toutes les partitions (true = y compris les bind mounts dans les containers)
+	partitions, err := disk.Partitions(true)
 	if err != nil {
 		fmt.Printf("Erreur partitions: %v\n", err)
 		return nil
 	}
 
+	seenDevices := make(map[string]bool)
+
 	for _, p := range partitions {
 		// 2. FILTRAGE : On ignore ce qui n'est pas intéressant pour Docker
 		isBoot := strings.HasPrefix(p.Mountpoint, "/boot")
 		isEFI := strings.HasPrefix(p.Mountpoint, "/efi")
+		isEtc := strings.HasPrefix(p.Mountpoint, "/etc")
 
 		// On ne garde que les systèmes de fichiers "réels"
-		// On peut ajouter "btrfs", "xfs", "zfs" selon ton besoin
 		isValidFS := p.Fstype == "ext4" || p.Fstype == "xfs" || p.Fstype == "btrfs"
 
-		if !isBoot && !isEFI && isValidFS {
-			// 3. On récupère l'usage spécifique à CE point de montage
+		if !isBoot && !isEFI && !isEtc && isValidFS && !seenDevices[p.Device] {
+			seenDevices[p.Device] = true
+
 			usage, err := disk.Usage(p.Mountpoint)
 			if err != nil {
 				continue
 			}
 
-			// 4. On remplit notre structure
 			info := DriveInfo{
 				Device:     p.Device,
 				Mountpoint: p.Mountpoint,
