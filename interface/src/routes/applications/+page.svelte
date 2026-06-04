@@ -5,7 +5,8 @@
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { LoaderCircle, ArrowUpFromLine, History } from '@lucide/svelte';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { LoaderCircle, ArrowUpFromLine, History, Search } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
@@ -13,6 +14,13 @@
 	let apps = $state<ApplicationVolumes[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let search = $state('');
+
+	let filteredApps = $derived(
+		search
+			? apps.filter(a => a.ContainerName.replace(/^\//, '').toLowerCase().includes(search.toLowerCase()))
+			: apps
+	);
 
 	let modalOpen = $state(false);
 	let selectedApp = $state<ApplicationVolumes | null>(null);
@@ -304,7 +312,12 @@
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else}
-		{#each apps as app (app.ContainerName)}
+		<div class="relative">
+			<Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+			<Input bind:value={search} placeholder={$t('applications.search')} class="pl-9" />
+		</div>
+
+		{#each filteredApps as app (app.ContainerName)}
 			{@const busy = hasActiveJob(app.ContainerName)}
 			<div class="rounded-lg border" class:border-primary={busy}>
 				<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">

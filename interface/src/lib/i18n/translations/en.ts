@@ -87,6 +87,7 @@ const en = {
 		title: "Applications",
 		description: "Docker containers and their mounted volumes.",
 		loading: "Loading…",
+		search: "Search…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
 		inMemory: "in-memory — cannot be migrated",
 		history: "History",

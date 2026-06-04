@@ -87,6 +87,7 @@ const fr = {
 		title: "Applications",
 		description: "Conteneurs Docker et leurs volumes montés.",
 		loading: "Chargement…",
+		search: "Rechercher…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
 		inMemory: "en mémoire — migration impossible",
 		history: "Historique",
