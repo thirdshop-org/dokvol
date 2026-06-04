@@ -1,59 +1,150 @@
-Excellent choix. **DokVol** est court, mémorisable, et s'inscrit parfaitement dans l'écosystème "Dok-quelque-chose". 
+# DokVol
 
-Voici ta feuille de route (Roadmap) pour transformer cette idée en un projet de niveau Senior.
+> **Docker Volume Manager** — Migrate, monitor, and manage Docker volumes across drives.
 
----
+DokVol is a lightweight appliance that scans Docker volumes, tracks disk usage, and lets you migrate data between drives — without touching container configurations.
 
-# 🧊 Roadmap : DokVol
-> **Le gestionnaire de stockage intelligent pour Docker.**
+## How it works
 
-## 1. La Vision du Projet
-**Problème :** Dans un serveur Docker (type VPS avec Dokploy), le stockage est rigide. On définit un chemin (`/var/lib/docker/...`), et si le disque est plein ou si on veut déplacer les données sur un autre volume (Block Storage, HDD externe), c'est une manipulation manuelle risquée (arrêt, déplacement, changement de config, redémarrage).
-**Solution :** DokVol devient une couche d'abstraction. Il scanne tes volumes, surveille leur taille, et permet de les "shifter" d'un disque à l'autre en un clic sans casser tes fichiers de configuration.
+1. **Scan** — Lists all Docker volumes and bind mounts, maps them to physical drives
+2. **Monitor** — Tracks disk usage per volume over time (stats collector)
+3. **Migrate** — Moves volume data between drives via rsync with automatic rollback
 
----
+## Quick install
 
-## 2. Architecture Technique
-*   **Langage :** Go (pour la performance, le binaire unique et l'accès système).
-*   **Interaction Docker :** Docker SDK for Go (pas de commandes shell `docker ps`).
-*   **Moteur de transfert :** `rsync` (appelé par Go) pour la fiabilité et la reprise sur erreur.
-*   **Interface :** 
-    *   Phase 1 : CLI (Ligne de commande).
-    *   Phase 2 : Dashboard Web (SvelteKit ou React + Tailwind) pour coller au style Dokploy.
+```sh
+curl -sSL https://ghcr.io/thirdshop-org/dokvol/install.sh | sh
+```
 
----
+Or with a specific version:
 
-## 3. Jalons de Développement (Feuille de Route)
+```sh
+DOKVOL_VERSION=1.2.3 curl -sSL https://ghcr.io/thirdshop-org/dokvol/install.sh | sh
+```
 
-### Phase 1 : L'Explorateur (MVP - Minimum Viable Product)
-*Objectif : Voir ce qu'il se passe sur le serveur.*
-*   **Scanner Docker :** Utiliser le SDK pour lister tous les conteneurs et identifier leurs points de montage (`Mounts` et `Volumes`).
-*   **Mapping Physique :** Lier chaque volume Docker au chemin réel sur le disque (`/var/lib/docker/volumes/...` ou bind mounts).
-*   **Calcul de taille :** Analyser récursivement la taille de chaque dossier de volume (en Go) pour identifier les "gros consommateurs".
-*   **CLI Output :** Une commande `dokvol list` qui affiche un joli tableau : Conteneur | Volume | Chemin Réel | Taille | Disque.
+The script will:
+- Detect your OS (Linux only)
+- Install Docker if missing
+- Pull the DokVol image
+- Start the container on port 8080
 
-### Phase 2 : Le Magicien (Le "Move")
-*Objectif : Déplacer les données proprement.*
-*   **Abstraction par Symlink :** Implémenter la logique suivante :
-    1. L'utilisateur crée un "Point DokVol" (ex: `/mnt/dokvol/db_data`).
-    2. Ce point est un lien symbolique vers le stockage réel.
-*   **Workflow de Migration Automatisé :**
-    1. **Stop :** Arrêter le conteneur via le SDK.
-    2. **Sync :** Copier les données vers la nouvelle destination (ex: de `/sda` vers `/sdb`) avec `rsync`.
-    3. **Verify :** Vérifier l'intégrité (checksum).
-    4. **Relink :** Mettre à jour le lien symbolique pour pointer vers le nouveau disque.
-    5. **Start :** Relancer le conteneur.
-*   **Rollback :** Si la copie échoue, le conteneur redémarre sur l'ancienne destination.
+### Manual run
 
-### Phase 3 : Le Gardien (Monitoring & Alertes)
-*Objectif : Prévenir avant que ça ne plante.*
-*   **Thresholds :** Définir des seuils (ex: "Alerte-moi si le volume de MariaDB dépasse 80% du disque actuel").
-*   **Auto-Cleanup :** Détecter et supprimer les volumes "orphelins" (ceux qui ne sont plus attachés à aucun conteneur).
-*   **Logs :** Historique de tous les déplacements de données pour l'audit.
+```sh
+docker run -d \
+  --name dokvol \
+  --restart unless-stopped \
+  --privileged \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /var/lib/docker/volumes:/var/lib/docker/volumes:rslave \
+  -v /mnt:/mnt:rslave \
+  -v /etc/dokvol:/etc/dokvol \
+  -p 8080:8080 \
+  ghcr.io/thirdshop-org/dokvol:latest
+```
 
-### Phase 4 : L'Interface DokVol (Style Dokploy)
-*Objectif : Rendre le projet "Senior-ready" visuellement.*
-*   **Dashboard :** Visualisation graphique des disques (camemberts de remplissage).
-*   **API REST :** Permettre à Dokploy (ou d'autres outils) d'appeler DokVol via des endpoints sécurisés.
+## API
 
----
+All endpoints are under `/api`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | System health |
+| GET | `/api/drives` | List available drives |
+| POST | `/api/drives/init` | Initialize a drive for DokVol |
+| GET | `/api/drives/health` | Check drive health |
+| GET | `/api/volumes` | List Docker volumes |
+| POST | `/api/volumes/migrate` | Start a volume migration |
+| GET | `/api/volumes/migrate` | List active migrations |
+| GET | `/api/volumes/migrate/:id` | Get migration status |
+| GET | `/api/applications` | List applications with volumes |
+| GET | `/api/preferences` | Get user preferences |
+| PUT | `/api/preferences` | Update user preferences |
+| GET | `/api/stats/volumes` | Volume usage history |
+| GET | `/api/stats/drives` | Drive usage history |
+| GET | `/api/stats/applications` | Application volume history |
+
+## Development
+
+### Prerequisites
+
+- Go 1.26+
+- Bun (for frontend)
+- Docker
+
+### Build locally
+
+```sh
+# Build the Docker image (frontend + backend in one image)
+docker build -t dokvol:dev .
+
+# Run
+docker run -d \
+  --name dokvol \
+  --privileged \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /var/lib/docker/volumes:/var/lib/docker/volumes:rslave \
+  -v /mnt:/mnt:rslave \
+  -v /etc/dokvol:/etc/dokvol \
+  -p 8080:8080 \
+  dokvol:dev
+```
+
+### Frontend only (dev mode)
+
+```sh
+cd interface
+bun install
+bun run dev  # starts on :5173, proxies /api to localhost:8080
+```
+
+### Backend only (dev mode)
+
+```sh
+cd api
+go run ./cmd/server/
+```
+
+## Architecture
+
+DokVol ships as a **single Docker image** containing:
+
+- **Backend** — Go/Gin API server (port 8080)
+- **Frontend** — SvelteKit SPA, built to static files, served by Gin
+
+Both are bundled together for zero-config deployment.
+
+```
+┌──────────────────────────────────────┐
+│  dokvol:latest                       │
+│  ┌────────────┐  ┌────────────────┐  │
+│  │ Go/Gin API │  │ SvelteKit SPA  │  │
+│  │ :8080/api  │  │ :8080 /*       │  │
+│  └────────────┘  └────────────────┘  │
+│       │                               │
+│       ▼                               │
+│  ┌──────────┐                         │
+│  │ SQLite DB│ (migrations, stats)     │
+│  └──────────┘                         │
+└──────────────────────────────────────┘
+```
+
+## Versioning
+
+Tags follow [SemVer](https://semver.org/).
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest stable release |
+| `1.2.3` | Exact version |
+| `1.2` | Latest patch of minor |
+| `sha-xxxxx` | Per-commit build |
+
+Push a tag to trigger CI:
+
+```sh
+git tag v1.2.3
+git push --tags
+```
+
+GitHub Actions builds and pushes `:latest`, `:1.2.3`, `:1.2`, and `:1` to `ghcr.io/thirdshop-org/dokvol`.
