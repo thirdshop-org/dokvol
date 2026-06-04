@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"dokvol/api/internal/database"
 	"dokvol/api/internal/handler"
@@ -42,6 +43,21 @@ func main() {
 		api.GET("/stats/drives", handler.ListStatsDrive)
 		api.GET("/stats/applications", handler.ListStatsApplication)
 	}
+
+	// ── Frontend statique ────────────────────────────────────────
+	staticDir := "/usr/local/share/dokvol/static"
+	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+			c.JSON(404, gin.H{"error": "not found"})
+			return
+		}
+		filePath := staticDir + c.Request.URL.Path
+		if _, err := os.Stat(filePath); err == nil {
+			c.File(filePath)
+			return
+		}
+		c.File(staticDir + "/index.html")
+	})
 
 	addr := os.Getenv("LISTEN_ADDR")
 	if addr == "" {

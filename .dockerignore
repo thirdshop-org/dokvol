@@ -1,6 +1,4 @@
 .git/
 .gitignore
 README.md
-dockerization-request.md
 install.sh
-interface/
