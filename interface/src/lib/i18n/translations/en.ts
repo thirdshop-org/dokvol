@@ -109,6 +109,10 @@ const en = {
 		loading: "Loading…",
 		search: "Search…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		viewModes: {
+			normal: "Normal",
+			byDrive: "By drive",
+		},
 		inMemory: "in-memory — cannot be migrated",
 		history: "History",
 		migrate: "Migrate",
@@ -195,6 +199,12 @@ const en = {
 		migrationBytes: "Data moved",
 		migrationDuration: "Total time",
 		migrationApps: "Apps migrated",
+	},
+	update: {
+		currentVersion: "v{{version}}",
+		available: "Update available",
+		latest: "Up to date",
+		checkFailed: "Could not check for updates",
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "System error",

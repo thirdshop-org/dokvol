@@ -8,13 +8,16 @@ RUN bun run build
 
 # ── Backend builder ───────────────────────────────────────────
 FROM golang:1.26-alpine AS backend
+ARG VERSION=0.0.1
 RUN apk add --no-cache gcc musl-dev
 WORKDIR /src
 COPY api/go.mod api/go.sum ./
 RUN go mod download
 
 COPY api/ .
-RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /usr/local/bin/dokvol ./cmd/dokvol/
+RUN CGO_ENABLED=1 go build \
+	-ldflags="-s -w -X 'dokvol/api/system.VERSION=${VERSION}'" \
+	-o /usr/local/bin/dokvol ./cmd/dokvol/
 
 # ── Final ─────────────────────────────────────────────────────
 FROM alpine:3.21

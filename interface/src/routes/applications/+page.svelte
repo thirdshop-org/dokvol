@@ -20,6 +20,33 @@
 	let appStats = $state<Record<string, StatsApplication | null>>({});
 	let volumeStats = $state<Record<string, StatsVolume | null>>({});
 
+	let viewMode = $state<'normal' | 'bydrive'>('normal');
+
+	type DriveGroup = {
+		drive: DriveInfo;
+		volumes: (VolumeDetail & { appName: string })[];
+		totalBytes: number;
+	};
+
+	const driveGroups = $derived.by(() => {
+		const map = new Map<string, DriveGroup>();
+		for (const app of filteredApps) {
+			const cleanName = app.ContainerName.replace(/^\//, '');
+			for (const vol of app.Volumes) {
+				const key = vol.SystemDrive?.mountpoint ?? '';
+				if (!map.has(key)) {
+					const fallback: DriveInfo = { device: '?', mountpoint: key, fstype: '', total_gb: 0, free_gb: 0, used_pct: 0 };
+					map.set(key, { drive: vol.SystemDrive ?? fallback, volumes: [], totalBytes: 0 });
+				}
+				const group = map.get(key)!;
+				group.volumes.push({ ...vol, appName: cleanName });
+				const volKey = vol.Name || vol.Source.split('/').filter(Boolean).pop() || '';
+				group.totalBytes += volumeStats[volKey]?.total_bytes ?? 0;
+			}
+		}
+		return [...map.values()].sort((a, b) => a.drive.mountpoint.localeCompare(b.drive.mountpoint));
+	});
+
 	let filteredApps = $derived(
 		search
 			? apps.filter(a => {
@@ -348,9 +375,25 @@
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-bold tracking-tight">{$t('applications.title')}</h1>
-		<p class="text-muted-foreground">{$t('applications.description')}</p>
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('applications.title')}</h1>
+			<p class="text-muted-foreground">{$t('applications.description')}</p>
+		</div>
+		<div class="flex items-center gap-1 rounded-lg border p-0.5">
+			<button
+				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+				class:bg-muted={viewMode === 'normal'}
+				class:text-muted-foreground={viewMode !== 'normal'}
+				onclick={() => (viewMode = 'normal')}
+			>{$t('applications.viewModes.normal')}</button>
+			<button
+				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+				class:bg-muted={viewMode === 'bydrive'}
+				class:text-muted-foreground={viewMode !== 'bydrive'}
+				onclick={() => (viewMode = 'bydrive')}
+			>{$t('applications.viewModes.byDrive')}</button>
+		</div>
 	</div>
 
 	{#if loading}
@@ -363,7 +406,8 @@
 			<Input bind:value={search} placeholder={$t('applications.search')} class="pl-9" />
 		</div>
 
-		{#each filteredApps as app (app.ContainerName)}
+		{#if viewMode === 'normal'}
+			{#each filteredApps as app (app.ContainerName)}
 			{@const busy = hasActiveJob(app.ContainerName)}
 			<div class="rounded-lg border" class:border-primary={busy}>
 				<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
@@ -449,6 +493,50 @@
 				</table>
 			</div>
 		{/each}
+		{:else if viewMode === 'bydrive'}
+			{#each driveGroups as group (group.drive.mountpoint)}
+				<div class="rounded-lg border">
+					<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
+						<h2 class="flex items-center gap-2 font-semibold">
+							<Badge class="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-[10px]">{group.drive.device}</Badge>
+							<span class="text-xs font-normal text-muted-foreground">{group.drive.mountpoint}</span>
+							{#if group.totalBytes > 0}
+								<span class="text-xs font-normal text-muted-foreground">— {formatBytes(group.totalBytes)}</span>
+							{/if}
+						</h2>
+						<span class="text-xs text-muted-foreground">{$t('applications.volumeCount', { n: group.volumes.length })}</span>
+					</div>
+					<table class="w-full text-sm">
+						<thead class="border-b text-muted-foreground">
+							<tr>
+								<th class="px-4 py-2 text-left font-medium">App</th>
+								<th class="px-4 py-2 text-left font-medium">Type</th>
+								<th class="px-4 py-2 text-left font-medium">Size</th>
+								<th class="px-4 py-2 text-left font-medium">Source</th>
+								<th class="px-4 py-2 text-left font-medium">Destination</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each group.volumes as vol, i (i)}
+								{@const volKey = vol.Name || vol.Source.split('/').filter(Boolean).pop() || ''}
+								{@const vs = volumeStats[volKey]}
+								<tr class="border-b last:border-0 hover:bg-muted/30">
+									<td class="px-4 py-2 font-mono text-xs">
+										<a href="/applications/{vol.appName}" class="hover:underline font-medium">{vol.appName}</a>
+									</td>
+									<td class="px-4 py-2">
+										<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'}>{vol.Type}</Badge>
+									</td>
+									<td class="px-4 py-2 font-mono text-xs text-muted-foreground">{vs?.total_bytes != null ? formatBytes(vs.total_bytes) : '—'}</td>
+									<td class="px-4 py-2 font-mono text-xs max-w-48 truncate" title={vol.Source}>{vol.Source}</td>
+									<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/each}
+		{/if}
 	{/if}
 </div>
 

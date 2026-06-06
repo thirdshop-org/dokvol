@@ -97,6 +97,10 @@ export interface StartMigrationResponse {
 	status: string;
 }
 
+export interface VersionResponse {
+	version: string;
+}
+
 export interface SystemHealthResponse {
 	healthy: boolean;
 	checks?: { check: string; passed: boolean; error?: string }[];
