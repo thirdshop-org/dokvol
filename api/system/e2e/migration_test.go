@@ -477,7 +477,7 @@ func TestE2E_PartialFailure(t *testing.T) {
 	testutil.StartContainer(t, cli, ctrName)
 	testutil.WaitContainerRunning(t, cli, ctrName)
 	testutil.WriteData(t, cli, ctrName, "/data1/vol1.bin", 5)
-	testutil.WriteData(t, cli, ctrName, "/data2/vol2.bin", 100)
+	testutil.WriteData(t, cli, ctrName, "/data2/vol2.bin", 300)
 
 	driveMount := testutil.CreateLoopDrive(t, 300)
 	drive := testutil.WaitForDrive(t, driveMount)
@@ -513,8 +513,8 @@ func TestE2E_PartialFailure(t *testing.T) {
 
 		mu.Lock()
 		v1 := testutil.FindVolume(job.Volumes, volName1)
-		if !chmodDone && v1 != nil && v1.Step != system.StepPending {
-			t.Logf("vol1 step=%s, breaking vol2 now", v1.Step)
+		if !chmodDone && v1 != nil && v1.Step == system.StepCompleted {
+			t.Log("vol1 completed, breaking vol2 now")
 			sourceDir := testutil.VolumeDataRoot(volName2)
 			backupDir := sourceDir + ".bak"
 			if err := os.Rename(sourceDir, backupDir); err != nil {
@@ -527,7 +527,7 @@ func TestE2E_PartialFailure(t *testing.T) {
 		if job.Status == system.JobCompleted || job.Status == system.JobFailed {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 
 	job := testutil.PollJob(t, mm, jobID, 10*time.Second)
