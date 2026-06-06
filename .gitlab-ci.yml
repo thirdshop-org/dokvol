@@ -7,7 +7,6 @@ variables:
 
 services:
   - name: docker:24.0.5-dind
-    command: ["--insecure-registry", "gitlab.thirdshop.fr:5050"]
     variables:
       DOCKER_TLS_CERTDIR: /certs
 
@@ -61,14 +60,6 @@ publish:
         docker tag "$GHCR_IMAGE:$CI_COMMIT_SHORT_SHA" "$GHCR_IMAGE:$tag"
         docker push "$GHCR_IMAGE:$tag"
       done
-    - |
-      if [ -n "$CI_REGISTRY" ]; then
-        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY" 2>/dev/null || true
-        for tag in $TAGS; do
-          docker tag "$GHCR_IMAGE:$tag" "$CI_REGISTRY_IMAGE:$tag"
-          docker push "$CI_REGISTRY_IMAGE:$tag" 2>/dev/null || echo "⚠️ GitLab Registry: $tag non poussé"
-        done
-      fi
   needs:
     - job: build
       artifacts: false
