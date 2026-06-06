@@ -39,9 +39,14 @@ echo "🚀 Installation de DokVol ${VERSION}..."
 
 echo "📥 Pulling ${DOKVOL_IMAGE}:${VERSION} ..."
 if ! docker pull "${DOKVOL_IMAGE}:${VERSION}"; then
-    echo "⚠️ Échec, tentative avec le registre secondaire : ${FALLBACK_IMAGE}"
-    DOKVOL_IMAGE="$FALLBACK_IMAGE"
-    docker pull "${DOKVOL_IMAGE}:${VERSION}"
+    if [ -n "$FALLBACK_IMAGE" ]; then
+        echo "⚠️ Échec, tentative avec le registre secondaire : ${FALLBACK_IMAGE}"
+        DOKVOL_IMAGE="$FALLBACK_IMAGE"
+        docker pull "${DOKVOL_IMAGE}:${VERSION}"
+    else
+        echo "❌ Échec du pull. Utilisez DOKVOL_IMAGE pour spécifier une autre image."
+        exit 1
+    fi
 fi
 
 # ── Nettoyage ancien container ─────────────────────────────────────
