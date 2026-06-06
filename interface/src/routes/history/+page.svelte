@@ -26,6 +26,7 @@
 	const limit = 50;
 
 	let selectedJobId = $state<string | null>(null);
+	let highlightVolumeName = $state<string | null>(null);
 	let jobDetail = $state<HistoryJobDetail | null>(null);
 	let detailLoading = $state(false);
 	let detailOpen = $state(false);
@@ -91,8 +92,9 @@
 		}
 	}
 
-	async function openDetail(jobId: string) {
+	async function openDetail(jobId: string, volumeName?: string) {
 		selectedJobId = jobId;
+		highlightVolumeName = volumeName ?? null;
 		detailLoading = true;
 		detailOpen = true;
 		try {
@@ -103,6 +105,22 @@
 			detailLoading = false;
 		}
 	}
+
+	let detailContainer: HTMLDivElement | undefined;
+	$effect(() => {
+		if (!detailLoading && detailOpen && highlightVolumeName) {
+			requestAnimationFrame(() => {
+				if (!detailContainer) return;
+				const els = detailContainer.querySelectorAll('[data-vol-name]');
+				for (const el of els) {
+					if (el.getAttribute('data-vol-name') === highlightVolumeName) {
+						el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						break;
+					}
+				}
+			});
+		}
+	});
 
 	function applyFilter() {
 		offset = 0;
@@ -191,7 +209,7 @@
 				</Table.Header>
 				<Table.Body>
 					{#each entries as entry (entry.id)}
-						<Table.Row class="cursor-pointer hover:bg-muted/30" onclick={() => openDetail(entry.job_id)}>
+						<Table.Row class="cursor-pointer hover:bg-muted/30" onclick={() => openDetail(entry.job_id, entry.volume_name)}>
 							<Table.Cell class="font-medium">{entry.app_name}</Table.Cell>
 							<Table.Cell class="font-mono text-xs">{entry.volume_name}</Table.Cell>
 							<Table.Cell class="hidden md:table-cell font-mono text-xs text-muted-foreground max-w-40 truncate" title={entry.source_path}>
@@ -233,7 +251,7 @@
 		<Dialog.Header>
 			<Dialog.Title>{$t('history.details.title')}</Dialog.Title>
 		</Dialog.Header>
-		<div class="space-y-3 max-h-96 overflow-y-auto">
+		<div bind:this={detailContainer} class="space-y-3 max-h-96 overflow-y-auto">
 			{#if detailLoading}
 				<p class="text-sm text-muted-foreground">{$t('history.loading')}</p>
 			{:else if jobDetail}
@@ -245,7 +263,10 @@
 					{/if}
 				</div>
 				{#each jobDetail.volumes as vol}
-					<div class="rounded-lg border p-3 text-sm">
+					<div
+						class="rounded-lg border p-3 text-sm {vol.volume_name === highlightVolumeName ? 'ring-2 ring-primary bg-primary/5' : ''}"
+						data-vol-name={vol.volume_name}
+					>
 						<div class="flex items-center justify-between mb-2">
 							<span class="font-medium">{vol.volume_name}</span>
 							<Badge class={statusBadgeClass(vol.status)}>{vol.status}</Badge>
