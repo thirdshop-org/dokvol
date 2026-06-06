@@ -3,6 +3,7 @@
 	import { page } from "$app/stores";
 	import { t } from "$lib/i18n";
 	import StatsChart from "$lib/components/charts/StatsChart.svelte";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import { getStatsDrive } from "$lib/api";
 
 	type RangeKey = "7d" | "30d" | "90d" | "all";
@@ -11,7 +12,9 @@
 	let used = $state(0);
 	let free = $state(0);
 	let total = $state(0);
-	let ready = $state(false);
+	let loading = $state(true);
+
+	let abortController: AbortController | null = null;
 
 	const mountpoint = $derived($page.url.searchParams.get("mountpoint") ?? "");
 
@@ -36,20 +39,34 @@
 	});
 
 	async function load() {
-		ready = false;
+		abortController?.abort();
+		const ac = new AbortController();
+		abortController = ac;
+		const signal = ac.signal;
+
+		loading = data.length === 0;
 		const from = toISO(rangeDays(selectedRange));
-		const rows = await getStatsDrive(mountpoint, from);
-		data = rows.map(r => ({ date: new Date(r.captured_at), value: r.used_bytes }));
-		if (rows.length > 0) {
-			const last = rows[rows.length - 1];
-			used = last.used_bytes;
-			free = last.free_bytes;
-			total = last.total_bytes;
+		try {
+			const rows = await getStatsDrive(mountpoint, from, undefined, signal);
+			if (signal.aborted) return;
+			data = rows.map(r => ({ date: new Date(r.captured_at), value: r.used_bytes }));
+			if (rows.length > 0) {
+				const last = rows[rows.length - 1];
+				used = last.used_bytes;
+				free = last.free_bytes;
+				total = last.total_bytes;
+			}
+		} catch {
+			// aborted requests are expected, ignore
+		} finally {
+			if (!signal.aborted) loading = false;
 		}
-		ready = true;
 	}
 
-	onMount(load);
+	onMount(() => {
+		load();
+		return () => { abortController?.abort(); };
+	});
 
 	function formatBytes(v: number): string {
 		if (v === 0) return "0 B";
@@ -78,7 +95,16 @@
 		</div>
 	</div>
 
-	{#if ready}
+	{#if loading && data.length === 0}
+		<div class="grid gap-4 sm:grid-cols-3">
+			{#each [1, 2, 3] as _}
+				<div class="rounded-lg border bg-card p-4">
+					<Skeleton class="h-4 w-16 mb-2" />
+					<Skeleton class="h-8 w-24" />
+				</div>
+			{/each}
+		</div>
+	{:else if total > 0}
 		<div class="grid gap-4 sm:grid-cols-3">
 			<div class="rounded-lg border bg-card p-4">
 				<p class="text-sm text-muted-foreground">{$t("drives.table.total")}</p>

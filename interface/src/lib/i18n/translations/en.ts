@@ -118,6 +118,10 @@ const en = {
 		migrate: "Migrate",
 		migration: {
 			running: "Migration in progress",
+			indicator: {
+				active: "{n} migration active | {n} migrations active",
+				aria: "{n} migration(s) in progress",
+			},
 			title: "Migrate data of « {{name}} »",
 			description: "Select the destination drive for each volume.",
 			sameDest: "Same destination for all",

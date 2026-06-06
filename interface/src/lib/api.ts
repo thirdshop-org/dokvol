@@ -14,7 +14,7 @@ export class ApiError extends Error {
 	}
 }
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchJson<T>(path: string, options?: RequestInit & { signal?: AbortSignal }): Promise<T> {
 	const res = await fetch(`${BASE}${path}`, options);
 	if (!res.ok) {
 		const body = await res.json().catch(() => null) as APIError | null;
@@ -26,16 +26,16 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 	return res.json();
 }
 
-export function getDrives(): Promise<DriveInfo[]> {
-	return fetchJson<DriveInfo[]>('/drives');
+export function getDrives(signal?: AbortSignal): Promise<DriveInfo[]> {
+	return fetchJson<DriveInfo[]>('/drives', { signal });
 }
 
-export function getVolumes(): Promise<VolumeDetail[]> {
-	return fetchJson<VolumeDetail[]>('/volumes');
+export function getVolumes(signal?: AbortSignal): Promise<VolumeDetail[]> {
+	return fetchJson<VolumeDetail[]>('/volumes', { signal });
 }
 
-export function getApplications(): Promise<ApplicationVolumes[]> {
-	return fetchJson<ApplicationVolumes[]>('/applications');
+export function getApplications(signal?: AbortSignal): Promise<ApplicationVolumes[]> {
+	return fetchJson<ApplicationVolumes[]>('/applications', { signal });
 }
 
 export function checkDriveHealth(mountpoint: string): Promise<HealthCheckResponse> {
@@ -82,29 +82,29 @@ export function getSystemHealth(): Promise<SystemHealthResponse> {
 	return fetchJson<SystemHealthResponse>('/health');
 }
 
-export function getStatsVolume(name: string, from?: string, to?: string): Promise<StatsVolume[]> {
+export function getStatsVolume(name: string, from?: string, to?: string, signal?: AbortSignal): Promise<StatsVolume[]> {
 	const params = new URLSearchParams({ name });
 	if (from) params.set('from', from);
 	if (to) params.set('to', to);
-	return fetchJson<StatsVolume[]>(`/stats/volumes?${params}`);
+	return fetchJson<StatsVolume[]>(`/stats/volumes?${params}`, { signal });
 }
 
-export function getStatsDrive(mountpoint: string, from?: string, to?: string): Promise<StatsDrive[]> {
+export function getStatsDrive(mountpoint: string, from?: string, to?: string, signal?: AbortSignal): Promise<StatsDrive[]> {
 	const params = new URLSearchParams({ mountpoint });
 	if (from) params.set('from', from);
 	if (to) params.set('to', to);
-	return fetchJson<StatsDrive[]>(`/stats/drives?${params}`);
+	return fetchJson<StatsDrive[]>(`/stats/drives?${params}`, { signal });
 }
 
 export function getPreferences(): Promise<PreferencesResponse> {
 	return fetchJson<PreferencesResponse>('/preferences');
 }
 
-export function getStatsApplication(name: string, from?: string, to?: string): Promise<StatsApplication[]> {
+export function getStatsApplication(name: string, from?: string, to?: string, signal?: AbortSignal): Promise<StatsApplication[]> {
 	const params = new URLSearchParams({ name });
 	if (from) params.set('from', from);
 	if (to) params.set('to', to);
-	return fetchJson<StatsApplication[]>(`/stats/applications?${params}`);
+	return fetchJson<StatsApplication[]>(`/stats/applications?${params}`, { signal });
 }
 
 export function getHistory(params?: { limit?: number; offset?: number; app?: string; drive?: string; status?: string }): Promise<HistoryListResponse> {
@@ -118,8 +118,8 @@ export function getHistory(params?: { limit?: number; offset?: number; app?: str
 	return fetchJson<HistoryListResponse>(`/history${qs ? '?' + qs : ''}`);
 }
 
-export function getStatsMigration(): Promise<MigrationStats> {
-	return fetchJson<MigrationStats>('/stats/migrations');
+export function getStatsMigration(signal?: AbortSignal): Promise<MigrationStats> {
+	return fetchJson<MigrationStats>('/stats/migrations', { signal });
 }
 
 export function getHistoryAppNames(): Promise<string[]> {

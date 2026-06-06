@@ -3,13 +3,16 @@
 	import { page } from "$app/stores";
 	import { t } from "$lib/i18n";
 	import StatsChart from "$lib/components/charts/StatsChart.svelte";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import { getStatsVolume } from "$lib/api";
 
 	type RangeKey = "7d" | "30d" | "90d" | "all";
 	let selectedRange = $state<RangeKey>("7d");
 	let data = $state<{ date: Date; value: number }[]>([]);
 	let currentSize = $state(0);
-	let ready = $state(false);
+	let loading = $state(true);
+
+	let abortController: AbortController | null = null;
 
 	const name = $derived($page.url.searchParams.get("name") ?? "");
 
@@ -34,17 +37,31 @@
 	});
 
 	async function load() {
-		ready = false;
+		abortController?.abort();
+		const ac = new AbortController();
+		abortController = ac;
+		const signal = ac.signal;
+
+		loading = data.length === 0;
 		const from = toISO(rangeDays(selectedRange));
-		const rows = await getStatsVolume(name, from);
-		data = rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes }));
-		if (rows.length > 0) {
-			currentSize = rows[rows.length - 1].total_bytes;
+		try {
+			const rows = await getStatsVolume(name, from, undefined, signal);
+			if (signal.aborted) return;
+			data = rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes }));
+			if (rows.length > 0) {
+				currentSize = rows[rows.length - 1].total_bytes;
+			}
+		} catch {
+			// aborted requests are expected, ignore
+		} finally {
+			if (!signal.aborted) loading = false;
 		}
-		ready = true;
 	}
 
-	onMount(load);
+	onMount(() => {
+		load();
+		return () => { abortController?.abort(); };
+	});
 
 	function formatBytes(v: number): string {
 		if (v === 0) return "0 B";
@@ -73,7 +90,12 @@
 		</div>
 	</div>
 
-	{#if ready}
+	{#if loading && data.length === 0}
+		<div class="rounded-lg border bg-card p-4">
+			<Skeleton class="h-4 w-24 mb-2" />
+			<Skeleton class="h-8 w-32" />
+		</div>
+	{:else if currentSize > 0}
 		<div class="rounded-lg border bg-card p-4">
 			<p class="text-sm text-muted-foreground">{$t("stats.storage")}</p>
 			<p class="text-2xl font-bold">{formatBytes(currentSize)}</p>

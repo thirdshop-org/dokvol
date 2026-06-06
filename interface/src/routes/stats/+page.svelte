@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import { t } from "$lib/i18n";
 	import * as Card from "$lib/components/ui/card/index.js";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import StatsChart from "$lib/components/charts/StatsChart.svelte";
 	import Sparkline from "$lib/components/charts/Sparkline.svelte";
 	import { getDrives, getStatsDrive, getStatsVolume, getStatsApplication, getVolumes, getApplications, getStatsMigration } from "$lib/api";
@@ -10,12 +11,18 @@
 
 	type RangeKey = "7d" | "30d" | "90d" | "all";
 
-	let ready = $state(false);
 	let selectedRange = $state<RangeKey>("7d");
 	let driveCharts = $state<{ mountpoint: string; device: string; data: { date: Date; value: number }[] }[]>([]);
 	let volumeCharts = $state<{ name: string; app: string; total: number; data: { date: Date; value: number }[] }[]>([]);
 	let appCharts = $state<{ name: string; data: { date: Date; value: number }[] }[]>([]);
 	let migrationStats = $state<MigrationStats | null>(null);
+
+	let drivesLoading = $state(true);
+	let volumesLoading = $state(true);
+	let appsLoading = $state(true);
+	let migrationsLoading = $state(true);
+
+	let abortController: AbortController | null = null;
 
 	function rangeDays(key: RangeKey): number {
 		if (key === "7d") return 7;
@@ -38,24 +45,40 @@
 	}
 
 	async function loadData() {
+		abortController?.abort();
+		const ac = new AbortController();
+		abortController = ac;
+		const signal = ac.signal;
+
 		const from = toISO(rangeDays(selectedRange));
-		const [d, v, a, m] = await Promise.all([
-			fetchDriveCharts(from),
-			fetchVolumeCharts(from),
-			fetchAppCharts(from),
-			getStatsMigration().catch(() => null),
-		]);
-		driveCharts = d;
-		volumeCharts = v;
-		appCharts = a;
-		migrationStats = m;
+
+		migrationsLoading = true;
+		drivesLoading = driveCharts.length === 0;
+		volumesLoading = volumeCharts.length === 0;
+		appsLoading = appCharts.length === 0;
+
+		getStatsMigration(signal)
+			.then(m => { if (!signal.aborted) { migrationStats = m; migrationsLoading = false; }})
+			.catch(() => { if (!signal.aborted) migrationsLoading = false; });
+
+		fetchDriveCharts(from, signal)
+			.then(d => { if (!signal.aborted) { driveCharts = d; drivesLoading = false; }})
+			.catch(() => { if (!signal.aborted) drivesLoading = false; });
+
+		fetchVolumeCharts(from, signal)
+			.then(v => { if (!signal.aborted) { volumeCharts = v; volumesLoading = false; }})
+			.catch(() => { if (!signal.aborted) volumesLoading = false; });
+
+		fetchAppCharts(from, signal)
+			.then(a => { if (!signal.aborted) { appCharts = a; appsLoading = false; }})
+			.catch(() => { if (!signal.aborted) appsLoading = false; });
 	}
 
-	async function fetchDriveCharts(from: string) {
-		const drives = await getDrives();
+	async function fetchDriveCharts(from: string, signal: AbortSignal) {
+		const drives = await getDrives(signal);
 		const results = await Promise.all(
 			drives.map(d =>
-				getStatsDrive(d.mountpoint, from)
+				getStatsDrive(d.mountpoint, from, undefined, signal)
 					.then(rows => ({
 						mountpoint: d.mountpoint,
 						device: d.device,
@@ -67,14 +90,14 @@
 		return results.filter(Boolean) as NonNullable<(typeof results)[number]>[];
 	}
 
-	async function fetchVolumeCharts(from: string) {
+	async function fetchVolumeCharts(from: string, signal: AbortSignal) {
 		try {
-			const volumes = await getVolumes();
+			const volumes = await getVolumes(signal);
 			const volNames = [...new Set(volumes.map(v => v.Name || v.Source))].slice(0, 10);
 			const results = await Promise.all(
 				volNames.map(async name => {
 					try {
-						const rows = await getStatsVolume(name, from);
+						const rows = await getStatsVolume(name, from, undefined, signal);
 						const app = volumes.find(v => (v.Name || v.Source) === name);
 						return {
 							name,
@@ -95,12 +118,12 @@
 		}
 	}
 
-	async function fetchAppCharts(from: string) {
+	async function fetchAppCharts(from: string, signal: AbortSignal) {
 		try {
-			const apps = await getApplications();
+			const apps = await getApplications(signal);
 			const results = await Promise.all(
 				apps.map(a =>
-					getStatsApplication(a.ContainerName, from)
+					getStatsApplication(a.ContainerName, from, undefined, signal)
 						.then(rows => ({
 							name: a.ContainerName,
 							data: rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes ?? 0 })),
@@ -114,14 +137,11 @@
 		}
 	}
 
-	onMount(async () => {
-		try {
-			await loadData();
-		} catch {
-			// individual fetch errors already handled per-chart
-		} finally {
-			ready = true;
-		}
+	onMount(() => {
+		loadData();
+		return () => {
+			abortController?.abort();
+		};
 	});
 
 	function formatDuration(ms: number): string {
@@ -163,17 +183,23 @@
 		</div>
 	</div>
 
-	{#if !ready}
-		<p class="text-muted-foreground">{$t("stats.loading")}</p>
-	{:else}
-
-		<!-- Migration stats -->
-		{#if migrationStats}
-			<div class="space-y-4">
-				<h2 class="text-lg font-semibold flex items-center gap-2">
-					<History class="size-5" /> {$t("stats.migrations")}
-				</h2>
-				<div class="grid gap-4 sm:grid-cols-3">
+	<!-- Migration stats -->
+	{#if migrationStats || migrationsLoading}
+		<div class="space-y-4">
+			<h2 class="text-lg font-semibold flex items-center gap-2">
+				<History class="size-5" /> {$t("stats.migrations")}
+			</h2>
+			<div class="grid gap-4 sm:grid-cols-3">
+				{#if migrationsLoading && !migrationStats}
+					{#each [1, 2, 3] as _}
+						<Card.Root>
+							<Card.Header class="pb-2">
+								<Skeleton class="h-8 w-20 mb-1" />
+								<Skeleton class="h-4 w-32" />
+							</Card.Header>
+						</Card.Root>
+					{/each}
+				{:else if migrationStats}
 					<Card.Root>
 						<Card.Header class="pb-2">
 							<Card.Title class="text-2xl font-bold">{migrationStats.total_count}</Card.Title>
@@ -192,7 +218,9 @@
 							<Card.Description>{$t("stats.migrationFailed")}</Card.Description>
 						</Card.Header>
 					</Card.Root>
-				</div>
+				{/if}
+			</div>
+			{#if !migrationsLoading && migrationStats}
 				<div class="grid gap-4 sm:grid-cols-3">
 					<Card.Root>
 						<Card.Header class="pb-2">
@@ -213,15 +241,25 @@
 						</Card.Header>
 					</Card.Root>
 				</div>
-			</div>
-		{/if}
+			{/if}
+		</div>
+	{/if}
 
-		<!-- Drives section -->
-		<div class="space-y-4">
-			<h2 class="text-lg font-semibold flex items-center gap-2">
-				<HardDrive class="size-5" /> {$t("stats.drives")}
-			</h2>
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+	<!-- Drives section -->
+	<div class="space-y-4">
+		<h2 class="text-lg font-semibold flex items-center gap-2">
+			<HardDrive class="size-5" /> {$t("stats.drives")}
+		</h2>
+		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			{#if drivesLoading && driveCharts.length === 0}
+				{#each [1, 2, 3] as _}
+					<Card.Root>
+						<Card.Content>
+							<Skeleton class="w-full" style="height: 180px;" />
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			{:else}
 				{#each driveCharts as chart}
 					<a href="/stats/drives?mountpoint={encodeURIComponent(chart.mountpoint)}" class="block">
 						<StatsChart
@@ -235,15 +273,29 @@
 						/>
 					</a>
 				{/each}
-			</div>
+			{/if}
 		</div>
+	</div>
 
-		<!-- Volumes section -->
-		<div class="space-y-4">
-			<h2 class="text-lg font-semibold flex items-center gap-2">
-				<Layers class="size-5" /> {$t("stats.topVolumes")}
-			</h2>
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+	<!-- Volumes section -->
+	<div class="space-y-4">
+		<h2 class="text-lg font-semibold flex items-center gap-2">
+			<Layers class="size-5" /> {$t("stats.topVolumes")}
+		</h2>
+		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			{#if volumesLoading && volumeCharts.length === 0}
+				{#each [1, 2, 3] as _}
+					<Card.Root>
+						<Card.Header>
+							<Skeleton class="h-5 w-40 mb-2" />
+							<Skeleton class="h-4 w-28" />
+						</Card.Header>
+						<Card.Content>
+							<Skeleton class="w-full" style="height: 40px;" />
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			{:else}
 				{#each volumeCharts as chart}
 					<a href="/stats/volumes?name={encodeURIComponent(chart.name)}" class="block">
 						<Card.Root>
@@ -259,15 +311,25 @@
 						</Card.Root>
 					</a>
 				{/each}
-			</div>
+			{/if}
 		</div>
+	</div>
 
-		<!-- Applications section -->
-		<div class="space-y-4">
-			<h2 class="text-lg font-semibold flex items-center gap-2">
-				<Box class="size-5" /> {$t("stats.applications")}
-			</h2>
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+	<!-- Applications section -->
+	<div class="space-y-4">
+		<h2 class="text-lg font-semibold flex items-center gap-2">
+			<Box class="size-5" /> {$t("stats.applications")}
+		</h2>
+		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			{#if appsLoading && appCharts.length === 0}
+				{#each [1, 2, 3] as _}
+					<Card.Root>
+						<Card.Content>
+							<Skeleton class="w-full" style="height: 180px;" />
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			{:else}
 				{#each appCharts as chart}
 					<a href="/stats/applications?name={encodeURIComponent(chart.name)}" class="block">
 						<StatsChart
@@ -281,8 +343,7 @@
 						/>
 					</a>
 				{/each}
-			</div>
+			{/if}
 		</div>
-
-	{/if}
+	</div>
 </div>
