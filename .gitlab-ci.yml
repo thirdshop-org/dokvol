@@ -1,14 +1,12 @@
 image: docker:24.0.5
 
 variables:
-  DOCKER_HOST: tcp://docker:2376
-  DOCKER_TLS_CERTDIR: /certs
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
   GHCR_IMAGE: ghcr.io/thirdshop-org/dokvol
 
 services:
   - name: docker:24.0.5-dind
-    variables:
-      DOCKER_TLS_CERTDIR: /certs
 
 stages:
   - test
@@ -18,6 +16,7 @@ stages:
 test:
   stage: test
   script:
+    - apk add --no-cache docker-compose
     - docker compose -f docker-compose.test.yml build
     - docker compose -f docker-compose.test.yml run sut
   variables:
