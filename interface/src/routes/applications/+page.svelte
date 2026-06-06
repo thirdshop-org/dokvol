@@ -5,6 +5,7 @@
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress, StatsApplication, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { LoaderCircle, ArrowUpFromLine, History, Search } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -402,6 +403,7 @@
 							<th class="px-4 py-2 text-left font-medium">Type</th>
 							<th class="px-4 py-2 text-left font-medium">Size</th>
 							<th class="px-4 py-2 text-left font-medium">Source</th>
+							<th class="px-4 py-2 text-left font-medium">Drive</th>
 							<th class="px-4 py-2 text-left font-medium">Destination</th>
 						</tr>
 					</thead>
@@ -424,6 +426,20 @@
 									{vol.Source}
 									{#if vol.MigratedDriveMountpoint}
 										<Badge class="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-100 dark:hover:bg-emerald-900 ml-1 text-[10px]">→ {vol.MigratedDriveMountpoint}</Badge>
+									{/if}
+								</td>
+								<td class="px-4 py-2 font-mono text-xs">
+									{#if vol.SystemDrive}
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												<Badge class="bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-100 dark:hover:bg-amber-900 text-[10px] cursor-default">{vol.SystemDrive.device}</Badge>
+											</Tooltip.Trigger>
+											<Tooltip.Content side="top" align="center">
+												{vol.SystemDrive.mountpoint}
+											</Tooltip.Content>
+										</Tooltip.Root>
+									{:else}
+										<span class="text-muted-foreground">—</span>
 									{/if}
 								</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
