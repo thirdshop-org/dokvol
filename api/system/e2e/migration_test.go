@@ -367,8 +367,18 @@ func TestE2E_ErrorHandling(t *testing.T) {
 		}
 
 		for _, v := range app.DockerVolumes {
-			if target := testutil.SymlinkTarget(t, v.Source); target != "" {
-				t.Fatalf("source is a symlink after failed migration: %s -> %s", v.Source, target)
+			target := testutil.SymlinkTarget(t, v.Source)
+			if v.Name == volNameA {
+				if target == "" {
+					t.Fatalf("volA source should be a symlink after successful migration: %s", v.Source)
+				}
+				if !strings.HasPrefix(target, driveMount1) {
+					t.Fatalf("volA symlink %s -> %s not on drive %s", v.Source, target, driveMount1)
+				}
+			} else {
+				if target != "" {
+					t.Fatalf("volB source is a symlink after failed migration: %s -> %s", v.Source, target)
+				}
 			}
 		}
 	})
