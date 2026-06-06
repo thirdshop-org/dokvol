@@ -3,7 +3,6 @@ package system
 import (
 	"context"
 	"log"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -94,7 +93,7 @@ func (c *StatsCollector) collectVolumes(ctx context.Context, batchID int64) {
 
 			volName := vol.Name
 			if volName == "" {
-				volName = filepath.Base(vol.Source)
+				volName = vol.Source
 			}
 
 			if err := c.db.CreateStatsVolume(ctx, db.CreateStatsVolumeParams{

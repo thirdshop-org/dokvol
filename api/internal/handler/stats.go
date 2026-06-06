@@ -27,12 +27,12 @@ func parseTimeRange(c *gin.Context) (time.Time, time.Time, bool) {
 	to := time.Now()
 
 	if q.From != "" {
-		if t, err := time.Parse(time.RFC3339, q.From); err == nil {
+		if t, err := time.Parse(time.RFC3339Nano, q.From); err == nil {
 			from = t
 		}
 	}
 	if q.To != "" {
-		if t, err := time.Parse(time.RFC3339, q.To); err == nil {
+		if t, err := time.Parse(time.RFC3339Nano, q.To); err == nil {
 			to = t
 		}
 	}
@@ -90,6 +90,12 @@ func ListStatsDrive(c *gin.Context) {
 	c.JSON(http.StatusOK, rows)
 }
 
+type statsApplicationResponse struct {
+	CapturedAt    time.Time `json:"captured_at"`
+	ContainerName string    `json:"container_name"`
+	TotalBytes    *float64  `json:"total_bytes"`
+}
+
 func ListStatsApplication(c *gin.Context) {
 	name := c.Query("name")
 	if name == "" {
@@ -112,5 +118,18 @@ func ListStatsApplication(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, rows)
+	resp := make([]statsApplicationResponse, len(rows))
+	for i, r := range rows {
+		var v *float64
+		if r.TotalBytes.Valid {
+			v = &r.TotalBytes.Float64
+		}
+		resp[i] = statsApplicationResponse{
+			CapturedAt:    r.CapturedAt,
+			ContainerName: r.ContainerName,
+			TotalBytes:    v,
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

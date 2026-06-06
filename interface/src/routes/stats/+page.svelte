@@ -35,48 +35,89 @@
 		return d.toISOString();
 	}
 
-	onMount(async () => {
+	async function loadData() {
+		const from = toISO(rangeDays(selectedRange));
+		const [d, v, a] = await Promise.all([
+			fetchDriveCharts(from),
+			fetchVolumeCharts(from),
+			fetchAppCharts(from),
+		]);
+		driveCharts = d;
+		volumeCharts = v;
+		appCharts = a;
+	}
+
+	async function fetchDriveCharts(from: string) {
+		const drives = await getDrives();
+		const results = await Promise.all(
+			drives.map(d =>
+				getStatsDrive(d.mountpoint, from)
+					.then(rows => ({
+						mountpoint: d.mountpoint,
+						device: d.device,
+						data: rows.map(r => ({ date: new Date(r.captured_at), value: r.used_bytes })),
+					}))
+					.catch(() => null)
+			)
+		);
+		return results.filter(Boolean) as NonNullable<(typeof results)[number]>[];
+	}
+
+	async function fetchVolumeCharts(from: string) {
 		try {
-			const drives = await getDrives();
 			const volumes = await getVolumes();
-			const apps = await getApplications();
-
-			const from = toISO(rangeDays(selectedRange));
-
-			const driveResults = await Promise.all(
-				drives.map(d => getStatsDrive(d.mountpoint, from).then(rows => ({
-					mountpoint: d.mountpoint,
-					device: d.device,
-					data: rows.map(r => ({ date: new Date(r.captured_at), value: r.used_bytes })),
-				})))
-			);
-			driveCharts = driveResults;
-
 			const volNames = [...new Set(volumes.map(v => v.Name || v.Source))].slice(0, 10);
-			const volResults = await Promise.all(
+			const results = await Promise.all(
 				volNames.map(async name => {
-					const rows = await getStatsVolume(name, from);
-					const app = volumes.find(v => (v.Name || v.Source) === name);
-					return {
-						name,
-						app: app?.ContainerName ?? "",
-						total: rows.length > 0 ? rows[rows.length - 1].total_bytes : 0,
-						data: rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes })),
-					};
+					try {
+						const rows = await getStatsVolume(name, from);
+						const app = volumes.find(v => (v.Name || v.Source) === name);
+						return {
+							name,
+							app: app?.ContainerName ?? "",
+							total: rows.length > 0 ? rows[rows.length - 1].total_bytes : 0,
+							data: rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes })),
+						};
+					} catch {
+						return null;
+					}
 				})
 			);
-			volResults.sort((a, b) => b.total - a.total);
-			volumeCharts = volResults.slice(0, 10);
+			const filtered = results.filter(Boolean) as NonNullable<(typeof results)[number]>[];
+			filtered.sort((a, b) => b.total - a.total);
+			return filtered.slice(0, 10);
+		} catch {
+			return [];
+		}
+	}
 
-			const appResults = await Promise.all(
-				apps.map(a => getStatsApplication(a.ContainerName, from).then(rows => ({
-					name: a.ContainerName,
-					data: rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes ?? 0 })),
-				})))
+	async function fetchAppCharts(from: string) {
+		try {
+			const apps = await getApplications();
+			const results = await Promise.all(
+				apps.map(a =>
+					getStatsApplication(a.ContainerName, from)
+						.then(rows => ({
+							name: a.ContainerName,
+							data: rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes ?? 0 })),
+						}))
+						.catch(() => null)
+				)
 			);
-			appCharts = appResults;
-		} catch { /* silent */ }
-		finally { ready = true; }
+			return results.filter(Boolean) as NonNullable<(typeof results)[number]>[];
+		} catch {
+			return [];
+		}
+	}
+
+	onMount(async () => {
+		try {
+			await loadData();
+		} catch {
+			// individual fetch errors already handled per-chart
+		} finally {
+			ready = true;
+		}
 	});
 
 	function formatBytes(v: number): string {
@@ -98,7 +139,7 @@
 				<button
 					data-active={selectedRange === range}
 					class="data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-4 py-3 text-start even:border-s sm:border-s sm:border-t-0 sm:px-6 sm:py-4"
-					onclick={() => (selectedRange = range as RangeKey)}
+					onclick={() => { selectedRange = range as RangeKey; loadData(); }}
 				>
 					<span class="text-xs text-muted-foreground">{$t(`stats.range.${range}`)}</span>
 				</button>

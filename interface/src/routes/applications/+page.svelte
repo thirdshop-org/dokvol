@@ -377,7 +377,7 @@
 						{/if}
 						{#if appStats[app.ContainerName]?.total_bytes != null}
 							<span class="ml-2 text-xs font-normal text-muted-foreground">
-								({$t('applications.volumeCount', { n: app.Volumes.length })} — {formatBytes(appStats[app.ContainerName]!.total_bytes)})
+								({$t('applications.volumeCount', { n: app.Volumes.length })} — {formatBytes(appStats[app.ContainerName]!.total_bytes!)})
 							</span>
 						{:else}
 							<span class="ml-2 text-xs font-normal text-muted-foreground">
