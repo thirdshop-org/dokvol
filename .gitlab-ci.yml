@@ -16,8 +16,8 @@ stages:
 test:
   stage: test
   script:
-    - docker compose -f docker-compose.test.yml build
-    - docker compose -f docker-compose.test.yml run sut
+    - docker build -f Dockerfile.test -t sut-test .
+    - docker run --privileged -v /dev:/dev -e DOKVOL_DB_PATH=/tmp/dokvol-test.db sut-test
   variables:
     DOKVOL_DB_PATH: /tmp/dokvol-test.db
   rules:
