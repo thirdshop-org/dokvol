@@ -1,4 +1,4 @@
-image: docker:27
+image: docker:24.0.5
 
 variables:
   DOCKER_HOST: tcp://docker:2375
@@ -6,7 +6,7 @@ variables:
   GHCR_IMAGE: ghcr.io/thirdshop-org/dokvol
 
 services:
-  - name: docker:27-dind
+  - name: docker:24.0.5-dind
     command: ["--insecure-registry", "gitlab.thirdshop.fr:5050"]
 
 stages:
