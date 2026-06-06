@@ -16,7 +16,7 @@ stages:
 test:
   stage: test
   script:
-    - docker build -f Dockerfile.test -t sut-test .
+    - DOCKER_BUILDKIT=0 docker build -f Dockerfile.test -t sut-test .
     - docker run --privileged -v /dev:/dev -e DOKVOL_DB_PATH=/tmp/dokvol-test.db sut-test
   variables:
     DOKVOL_DB_PATH: /tmp/dokvol-test.db
