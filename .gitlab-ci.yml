@@ -61,10 +61,10 @@ publish:
       done
     - |
       if [ -n "$CI_REGISTRY" ]; then
-        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY" 2>/dev/null || true
+        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY" || true
         for tag in $TAGS; do
-          docker tag "$GHCR_IMAGE:$tag" "$CI_REGISTRY_IMAGE:$tag" 2>/dev/null || true
-          docker push "$CI_REGISTRY_IMAGE:$tag" 2>/dev/null || echo "⚠️ GitLab Registry: $tag non poussé"
+          docker tag "$GHCR_IMAGE:$tag" "$CI_REGISTRY_IMAGE:$tag" || true
+          docker push "$CI_REGISTRY_IMAGE:$tag" || echo "⚠️ GitLab Registry: $tag non poussé"
         done
       fi
   needs:
