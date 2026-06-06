@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats } from '$lib/types';
 
 const BASE = '/api';
 
@@ -112,6 +112,10 @@ export function getHistory(params?: { limit?: number; offset?: number; app?: str
 	if (params?.status) search.set('status', params.status);
 	const qs = search.toString();
 	return fetchJson<HistoryListResponse>(`/history${qs ? '?' + qs : ''}`);
+}
+
+export function getStatsMigration(): Promise<MigrationStats> {
+	return fetchJson<MigrationStats>('/stats/migrations');
 }
 
 export function getHistoryJob(jobId: string): Promise<HistoryJobDetail> {

@@ -133,3 +133,12 @@ func ListStatsApplication(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
+
+func ListStatsMigration(c *gin.Context) {
+	stats, err := MigrationManager.Queries.GetMigrationStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, system.NewAPIError("INTERNAL_ERROR", err.Error(), nil))
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}

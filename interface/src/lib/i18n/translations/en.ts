@@ -188,6 +188,13 @@ const en = {
 		evolution: "Evolution",
 		bytes: "Bytes",
 		topVolumes: "Top volumes",
+		migrations: "Migrations",
+		migrationTotal: "Total",
+		migrationCompleted: "Completed",
+		migrationFailed: "Failed",
+		migrationBytes: "Data moved",
+		migrationDuration: "Total time",
+		migrationApps: "Apps migrated",
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "System error",

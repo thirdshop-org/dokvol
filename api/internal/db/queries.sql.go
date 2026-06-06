@@ -440,6 +440,40 @@ func (q *Queries) GetMigrationLogByJobID(ctx context.Context, jobID string) ([]M
 	return items, nil
 }
 
+const getMigrationStats = `-- name: GetMigrationStats :one
+SELECT
+  CAST(COUNT(*) AS INTEGER) as total_count,
+  CAST(COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS INTEGER) as completed_count,
+  CAST(COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) AS INTEGER) as failed_count,
+  CAST(COALESCE(SUM(total_bytes), 0) AS INTEGER) as total_bytes_moved,
+  CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) as total_duration_ms,
+  CAST(COUNT(DISTINCT app_name) AS INTEGER) as unique_apps
+FROM migration_log
+`
+
+type GetMigrationStatsRow struct {
+	TotalCount      int64 `json:"total_count"`
+	CompletedCount  int64 `json:"completed_count"`
+	FailedCount     int64 `json:"failed_count"`
+	TotalBytesMoved int64 `json:"total_bytes_moved"`
+	TotalDurationMs int64 `json:"total_duration_ms"`
+	UniqueApps      int64 `json:"unique_apps"`
+}
+
+func (q *Queries) GetMigrationStats(ctx context.Context) (GetMigrationStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getMigrationStats)
+	var i GetMigrationStatsRow
+	err := row.Scan(
+		&i.TotalCount,
+		&i.CompletedCount,
+		&i.FailedCount,
+		&i.TotalBytesMoved,
+		&i.TotalDurationMs,
+		&i.UniqueApps,
+	)
+	return i, err
+}
+
 const getPreference = `-- name: GetPreference :one
 SELECT "key", value FROM user_preferences WHERE key = ?
 `

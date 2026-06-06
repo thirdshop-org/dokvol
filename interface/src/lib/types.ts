@@ -128,6 +128,15 @@ export interface StatsApplication {
 
 export type PreferencesResponse = Record<string, string>;
 
+export interface MigrationStats {
+	total_count: number;
+	completed_count: number;
+	failed_count: number;
+	total_bytes_moved: number;
+	total_duration_ms: number;
+	unique_apps: number;
+}
+
 export interface MigrationLogEntry {
 	id: number;
 	job_id: string;

@@ -29,6 +29,7 @@ type Querier interface {
 	GetDrive(ctx context.Context, id int64) (Drive, error)
 	GetMigrationJob(ctx context.Context, id string) (MigrationJob, error)
 	GetMigrationLogByJobID(ctx context.Context, jobID string) ([]MigrationLog, error)
+	GetMigrationStats(ctx context.Context) (GetMigrationStatsRow, error)
 	GetPreference(ctx context.Context, key string) (UserPreference, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)

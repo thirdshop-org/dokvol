@@ -47,6 +47,7 @@ var serverCmd = &cobra.Command{
 			api.GET("/stats/volumes", handler.ListStatsVolume)
 			api.GET("/stats/drives", handler.ListStatsDrive)
 			api.GET("/stats/applications", handler.ListStatsApplication)
+			api.GET("/stats/migrations", handler.ListStatsMigration)
 
 			api.GET("/history", handler.ListHistory)
 			api.GET("/history/:id", handler.GetHistoryJob)

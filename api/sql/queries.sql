@@ -194,3 +194,13 @@ DELETE FROM migration_log WHERE id = ?;
 
 -- name: DeleteOldStatsDrive :exec
 DELETE FROM stats_drive WHERE captured_at < ?;
+
+-- name: GetMigrationStats :one
+SELECT
+  CAST(COUNT(*) AS INTEGER) as total_count,
+  CAST(COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS INTEGER) as completed_count,
+  CAST(COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) AS INTEGER) as failed_count,
+  CAST(COALESCE(SUM(total_bytes), 0) AS INTEGER) as total_bytes_moved,
+  CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) as total_duration_ms,
+  CAST(COUNT(DISTINCT app_name) AS INTEGER) as unique_apps
+FROM migration_log;

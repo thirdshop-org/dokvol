@@ -4,8 +4,9 @@
 	import * as Card from "$lib/components/ui/card/index.js";
 	import StatsChart from "$lib/components/charts/StatsChart.svelte";
 	import Sparkline from "$lib/components/charts/Sparkline.svelte";
-	import { getDrives, getStatsDrive, getStatsVolume, getStatsApplication, getVolumes, getApplications } from "$lib/api";
-	import { AreaChart, HardDrive, Layers, Box } from "@lucide/svelte";
+	import { getDrives, getStatsDrive, getStatsVolume, getStatsApplication, getVolumes, getApplications, getStatsMigration } from "$lib/api";
+	import { AreaChart, HardDrive, Layers, Box, History } from "@lucide/svelte";
+	import type { MigrationStats } from "$lib/types";
 
 	type RangeKey = "7d" | "30d" | "90d" | "all";
 
@@ -14,6 +15,7 @@
 	let driveCharts = $state<{ mountpoint: string; device: string; data: { date: Date; value: number }[] }[]>([]);
 	let volumeCharts = $state<{ name: string; app: string; total: number; data: { date: Date; value: number }[] }[]>([]);
 	let appCharts = $state<{ name: string; data: { date: Date; value: number }[] }[]>([]);
+	let migrationStats = $state<MigrationStats | null>(null);
 
 	function rangeDays(key: RangeKey): number {
 		if (key === "7d") return 7;
@@ -37,14 +39,16 @@
 
 	async function loadData() {
 		const from = toISO(rangeDays(selectedRange));
-		const [d, v, a] = await Promise.all([
+		const [d, v, a, m] = await Promise.all([
 			fetchDriveCharts(from),
 			fetchVolumeCharts(from),
 			fetchAppCharts(from),
+			getStatsMigration().catch(() => null),
 		]);
 		driveCharts = d;
 		volumeCharts = v;
 		appCharts = a;
+		migrationStats = m;
 	}
 
 	async function fetchDriveCharts(from: string) {
@@ -120,6 +124,18 @@
 		}
 	});
 
+	function formatDuration(ms: number): string {
+		if (ms < 1000) return `${ms}ms`;
+		const s = Math.floor(ms / 1000);
+		if (s < 60) return `${s}s`;
+		const m = Math.floor(s / 60);
+		const sec = s % 60;
+		if (m < 60) return `${m}m ${sec}s`;
+		const h = Math.floor(m / 60);
+		const min = m % 60;
+		return `${h}h ${min}m`;
+	}
+
 	function formatBytes(v: number): string {
 		if (v === 0) return "0 B";
 		const units = ["B", "KB", "MB", "GB", "TB"];
@@ -150,6 +166,55 @@
 	{#if !ready}
 		<p class="text-muted-foreground">{$t("stats.loading")}</p>
 	{:else}
+
+		<!-- Migration stats -->
+		{#if migrationStats}
+			<div class="space-y-4">
+				<h2 class="text-lg font-semibold flex items-center gap-2">
+					<History class="size-5" /> {$t("stats.migrations")}
+				</h2>
+				<div class="grid gap-4 sm:grid-cols-3">
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold">{migrationStats.total_count}</Card.Title>
+							<Card.Description>{$t("stats.migrationTotal")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold text-emerald-600">{migrationStats.completed_count}</Card.Title>
+							<Card.Description>{$t("stats.migrationCompleted")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold text-red-600">{migrationStats.failed_count}</Card.Title>
+							<Card.Description>{$t("stats.migrationFailed")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+				</div>
+				<div class="grid gap-4 sm:grid-cols-3">
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold">{formatBytes(migrationStats.total_bytes_moved)}</Card.Title>
+							<Card.Description>{$t("stats.migrationBytes")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold">{formatDuration(migrationStats.total_duration_ms)}</Card.Title>
+							<Card.Description>{$t("stats.migrationDuration")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-2xl font-bold">{migrationStats.unique_apps}</Card.Title>
+							<Card.Description>{$t("stats.migrationApps")}</Card.Description>
+						</Card.Header>
+					</Card.Root>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Drives section -->
 		<div class="space-y-4">

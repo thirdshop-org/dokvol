@@ -188,6 +188,13 @@ const fr = {
 		evolution: "Évolution",
 		bytes: "Octets",
 		topVolumes: "Top volumes",
+		migrations: "Migrations",
+		migrationTotal: "Total",
+		migrationCompleted: "Réussies",
+		migrationFailed: "Échouées",
+		migrationBytes: "Données déplacées",
+		migrationDuration: "Temps total",
+		migrationApps: "Apps migrées",
 	},
 	error: {
 		"SYSTEM.NOT_FOUND": "Erreur système",
