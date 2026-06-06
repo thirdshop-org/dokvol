@@ -28,6 +28,24 @@ type MigrationJob struct {
 	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
+type MigrationLog struct {
+	ID           int64          `json:"id"`
+	JobID        string         `json:"job_id"`
+	AppName      string         `json:"app_name"`
+	VolumeName   string         `json:"volume_name"`
+	SourcePath   string         `json:"source_path"`
+	SourceDrive  sql.NullString `json:"source_drive"`
+	DestPath     string         `json:"dest_path"`
+	DestDrive    string         `json:"dest_drive"`
+	TotalBytes   int64          `json:"total_bytes"`
+	DurationMs   int64          `json:"duration_ms"`
+	Status       string         `json:"status"`
+	ErrorMessage sql.NullString `json:"error_message"`
+	StartedAt    sql.NullTime   `json:"started_at"`
+	CompletedAt  sql.NullTime   `json:"completed_at"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+}
+
 type MigrationVolumeProgress struct {
 	ID               int64          `json:"id"`
 	JobID            string         `json:"job_id"`

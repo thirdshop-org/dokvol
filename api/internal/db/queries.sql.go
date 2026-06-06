@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+const countMigrationLogs = `-- name: CountMigrationLogs :one
+SELECT COUNT(*) FROM migration_log
+`
+
+func (q *Queries) CountMigrationLogs(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMigrationLogs)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDrive = `-- name: CreateDrive :one
 INSERT INTO drive (device, mountpoint, fstype, total_gb, free_gb, used_pct)
 VALUES (?, ?, ?, ?, ?, ?)
@@ -70,6 +81,65 @@ func (q *Queries) CreateMigrationJob(ctx context.Context, arg CreateMigrationJob
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createMigrationLog = `-- name: CreateMigrationLog :one
+INSERT INTO migration_log (job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at
+`
+
+type CreateMigrationLogParams struct {
+	JobID        string         `json:"job_id"`
+	AppName      string         `json:"app_name"`
+	VolumeName   string         `json:"volume_name"`
+	SourcePath   string         `json:"source_path"`
+	SourceDrive  sql.NullString `json:"source_drive"`
+	DestPath     string         `json:"dest_path"`
+	DestDrive    string         `json:"dest_drive"`
+	TotalBytes   int64          `json:"total_bytes"`
+	DurationMs   int64          `json:"duration_ms"`
+	Status       string         `json:"status"`
+	ErrorMessage sql.NullString `json:"error_message"`
+	StartedAt    sql.NullTime   `json:"started_at"`
+	CompletedAt  sql.NullTime   `json:"completed_at"`
+}
+
+func (q *Queries) CreateMigrationLog(ctx context.Context, arg CreateMigrationLogParams) (MigrationLog, error) {
+	row := q.db.QueryRowContext(ctx, createMigrationLog,
+		arg.JobID,
+		arg.AppName,
+		arg.VolumeName,
+		arg.SourcePath,
+		arg.SourceDrive,
+		arg.DestPath,
+		arg.DestDrive,
+		arg.TotalBytes,
+		arg.DurationMs,
+		arg.Status,
+		arg.ErrorMessage,
+		arg.StartedAt,
+		arg.CompletedAt,
+	)
+	var i MigrationLog
+	err := row.Scan(
+		&i.ID,
+		&i.JobID,
+		&i.AppName,
+		&i.VolumeName,
+		&i.SourcePath,
+		&i.SourceDrive,
+		&i.DestPath,
+		&i.DestDrive,
+		&i.TotalBytes,
+		&i.DurationMs,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -245,6 +315,15 @@ func (q *Queries) DeleteDrive(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteMigrationLog = `-- name: DeleteMigrationLog :exec
+DELETE FROM migration_log WHERE id = ?
+`
+
+func (q *Queries) DeleteMigrationLog(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteMigrationLog, id)
+	return err
+}
+
 const deleteOldStatsDrive = `-- name: DeleteOldStatsDrive :exec
 DELETE FROM stats_drive WHERE captured_at < ?
 `
@@ -316,6 +395,49 @@ func (q *Queries) GetMigrationJob(ctx context.Context, id string) (MigrationJob,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getMigrationLogByJobID = `-- name: GetMigrationLogByJobID :many
+SELECT id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at FROM migration_log WHERE job_id = ? ORDER BY id
+`
+
+func (q *Queries) GetMigrationLogByJobID(ctx context.Context, jobID string) ([]MigrationLog, error) {
+	rows, err := q.db.QueryContext(ctx, getMigrationLogByJobID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationLog
+	for rows.Next() {
+		var i MigrationLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.AppName,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.SourceDrive,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.TotalBytes,
+			&i.DurationMs,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPreference = `-- name: GetPreference :one
@@ -503,6 +625,212 @@ func (q *Queries) ListMigrationJobs(ctx context.Context) ([]MigrationJob, error)
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMigrationLogs = `-- name: ListMigrationLogs :many
+SELECT id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at FROM migration_log
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListMigrationLogsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) ListMigrationLogs(ctx context.Context, arg ListMigrationLogsParams) ([]MigrationLog, error) {
+	rows, err := q.db.QueryContext(ctx, listMigrationLogs, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationLog
+	for rows.Next() {
+		var i MigrationLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.AppName,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.SourceDrive,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.TotalBytes,
+			&i.DurationMs,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMigrationLogsByApp = `-- name: ListMigrationLogsByApp :many
+SELECT id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at FROM migration_log
+WHERE app_name = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListMigrationLogsByAppParams struct {
+	AppName string `json:"app_name"`
+	Limit   int64  `json:"limit"`
+	Offset  int64  `json:"offset"`
+}
+
+func (q *Queries) ListMigrationLogsByApp(ctx context.Context, arg ListMigrationLogsByAppParams) ([]MigrationLog, error) {
+	rows, err := q.db.QueryContext(ctx, listMigrationLogsByApp, arg.AppName, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationLog
+	for rows.Next() {
+		var i MigrationLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.AppName,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.SourceDrive,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.TotalBytes,
+			&i.DurationMs,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMigrationLogsByDrive = `-- name: ListMigrationLogsByDrive :many
+SELECT id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at FROM migration_log
+WHERE dest_drive = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListMigrationLogsByDriveParams struct {
+	DestDrive string `json:"dest_drive"`
+	Limit     int64  `json:"limit"`
+	Offset    int64  `json:"offset"`
+}
+
+func (q *Queries) ListMigrationLogsByDrive(ctx context.Context, arg ListMigrationLogsByDriveParams) ([]MigrationLog, error) {
+	rows, err := q.db.QueryContext(ctx, listMigrationLogsByDrive, arg.DestDrive, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationLog
+	for rows.Next() {
+		var i MigrationLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.AppName,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.SourceDrive,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.TotalBytes,
+			&i.DurationMs,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMigrationLogsByStatus = `-- name: ListMigrationLogsByStatus :many
+SELECT id, job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at, created_at FROM migration_log
+WHERE status = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListMigrationLogsByStatusParams struct {
+	Status string `json:"status"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
+}
+
+func (q *Queries) ListMigrationLogsByStatus(ctx context.Context, arg ListMigrationLogsByStatusParams) ([]MigrationLog, error) {
+	rows, err := q.db.QueryContext(ctx, listMigrationLogsByStatus, arg.Status, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationLog
+	for rows.Next() {
+		var i MigrationLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.AppName,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.SourceDrive,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.TotalBytes,
+			&i.DurationMs,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

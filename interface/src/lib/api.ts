@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail } from '$lib/types';
 
 const BASE = '/api';
 
@@ -101,4 +101,23 @@ export function getStatsApplication(name: string, from?: string, to?: string): P
 	if (from) params.set('from', from);
 	if (to) params.set('to', to);
 	return fetchJson<StatsApplication[]>(`/stats/applications?${params}`);
+}
+
+export function getHistory(params?: { limit?: number; offset?: number; app?: string; drive?: string; status?: string }): Promise<HistoryListResponse> {
+	const search = new URLSearchParams();
+	if (params?.limit) search.set('limit', String(params.limit));
+	if (params?.offset) search.set('offset', String(params.offset));
+	if (params?.app) search.set('app', params.app);
+	if (params?.drive) search.set('drive', params.drive);
+	if (params?.status) search.set('status', params.status);
+	const qs = search.toString();
+	return fetchJson<HistoryListResponse>(`/history${qs ? '?' + qs : ''}`);
+}
+
+export function getHistoryJob(jobId: string): Promise<HistoryJobDetail> {
+	return fetchJson<HistoryJobDetail>(`/history/${jobId}`);
+}
+
+export function rescanHistory(): Promise<{ success: boolean }> {
+	return fetchJson<{ success: boolean }>('/history/rescan', { method: 'POST' });
 }

@@ -10,8 +10,10 @@ import (
 )
 
 type Querier interface {
+	CountMigrationLogs(ctx context.Context) (int64, error)
 	CreateDrive(ctx context.Context, arg CreateDriveParams) (Drive, error)
 	CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error)
+	CreateMigrationLog(ctx context.Context, arg CreateMigrationLogParams) (MigrationLog, error)
 	CreateStatsBatch(ctx context.Context) (StatsBatch, error)
 	CreateStatsDrive(ctx context.Context, arg CreateStatsDriveParams) error
 	CreateStatsVolume(ctx context.Context, arg CreateStatsVolumeParams) error
@@ -19,18 +21,24 @@ type Querier interface {
 	CreateVolumeDrive(ctx context.Context, arg CreateVolumeDriveParams) (VolumeDrive, error)
 	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
 	DeleteDrive(ctx context.Context, id int64) error
+	DeleteMigrationLog(ctx context.Context, id int64) error
 	DeleteOldStatsDrive(ctx context.Context, capturedAt time.Time) error
 	DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error
 	DeleteVolume(ctx context.Context, id int64) error
 	DeleteVolumeDrive(ctx context.Context, id int64) error
 	GetDrive(ctx context.Context, id int64) (Drive, error)
 	GetMigrationJob(ctx context.Context, id string) (MigrationJob, error)
+	GetMigrationLogByJobID(ctx context.Context, jobID string) ([]MigrationLog, error)
 	GetPreference(ctx context.Context, key string) (UserPreference, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)
 	ListDrives(ctx context.Context) ([]Drive, error)
 	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
 	ListMigrationJobs(ctx context.Context) ([]MigrationJob, error)
+	ListMigrationLogs(ctx context.Context, arg ListMigrationLogsParams) ([]MigrationLog, error)
+	ListMigrationLogsByApp(ctx context.Context, arg ListMigrationLogsByAppParams) ([]MigrationLog, error)
+	ListMigrationLogsByDrive(ctx context.Context, arg ListMigrationLogsByDriveParams) ([]MigrationLog, error)
+	ListMigrationLogsByStatus(ctx context.Context, arg ListMigrationLogsByStatusParams) ([]MigrationLog, error)
 	ListPreferences(ctx context.Context) ([]UserPreference, error)
 	ListStatsApplication(ctx context.Context, arg ListStatsApplicationParams) ([]ListStatsApplicationRow, error)
 	ListStatsDriveByMountpoint(ctx context.Context, arg ListStatsDriveByMountpointParams) ([]StatsDrive, error)

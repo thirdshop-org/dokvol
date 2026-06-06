@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"dokvol/api/internal/db"
 
@@ -42,6 +43,7 @@ type VolumeRow struct {
 	TotalBytes  int64
 	Transferred int64
 	SourcePath  string
+	SourceDrive string
 	DestPath    string
 	DestDrive   string
 	Error       string
@@ -104,12 +106,13 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 		}
 
 		job.Volumes[i] = VolumeRow{
-			ID:         p.ID,
-			VolumeName: vol.VolumeDetail.Name,
-			Step:       StepPending,
-			SourcePath: vol.VolumeDetail.Source,
-			DestPath:   destPath,
-			DestDrive:  vol.DestinationDrive.Mountpoint,
+			ID:          p.ID,
+			VolumeName:  vol.VolumeDetail.Name,
+			Step:        StepPending,
+			SourcePath:  vol.VolumeDetail.Source,
+			SourceDrive: getDriveForSourcePath(vol.VolumeDetail.Source, GetDrives()),
+			DestPath:    destPath,
+			DestDrive:   vol.DestinationDrive.Mountpoint,
 		}
 		job.Volumes[i].mu = sync.Mutex{}
 	}
@@ -144,6 +147,7 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 				TotalBytes:  job.Volumes[i].TotalBytes,
 				Transferred: job.Volumes[i].Transferred,
 				SourcePath:  job.Volumes[i].SourcePath,
+				SourceDrive: job.Volumes[i].SourceDrive,
 				DestPath:    job.Volumes[i].DestPath,
 				DestDrive:   job.Volumes[i].DestDrive,
 				Error:       job.Volumes[i].Error,
@@ -273,10 +277,14 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 	}
 	m.mu.Unlock()
 
+	drives := GetDrives()
 	s := System{
-		Drives:       GetDrives(),
-		Applications: GetApplicationsDetails(GetDrives()),
+		Drives:       drives,
+		Applications: GetApplicationsDetails(drives),
 	}
+
+	startedAt := time.Now()
+	completedAt := startedAt
 
 	opts := MoveStorageOptions{
 		Application:        app,
@@ -325,6 +333,7 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 	s.docker = newDockerClient()
 
 	err := s.MoveApplicationStorage(opts)
+	completedAt = time.Now()
 
 	status := string(JobCompleted)
 	if err != nil {
@@ -369,6 +378,58 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 		j.Status = MigrationJobStatus(status)
 	}
 	m.mu.Unlock()
+
+	// Write history
+	{
+		totalDuration := completedAt.Sub(startedAt).Milliseconds()
+		recordVolumes := make(map[string]VolumeRecord)
+
+		// Gather per-volume data from the job
+		m.mu.RLock()
+		job, hasJob := m.jobs[jobID]
+		m.mu.RUnlock()
+
+		if hasJob {
+			for i := range job.Volumes {
+				v := &job.Volumes[i]
+				volStatus := status
+				volError := ""
+				if v.Step == StepFailed {
+					volStatus = string(JobFailed)
+					volError = v.Error
+				}
+				sourceDrive := getDriveForSourcePath(v.SourcePath, drives)
+				recordVolumes[v.VolumeName] = VolumeRecord{
+					VolumeName:  v.VolumeName,
+					SourcePath:  v.SourcePath,
+					SourceDrive: sourceDrive,
+					DestPath:    v.DestPath,
+					DestDrive:   v.DestDrive,
+					TotalBytes:  v.TotalBytes,
+					DurationMs:  totalDuration,
+					Status:      volStatus,
+					Error:       volError,
+				}
+			}
+		}
+
+		if len(recordVolumes) > 0 {
+			volList := make([]VolumeRecord, 0, len(recordVolumes))
+			for _, vr := range recordVolumes {
+				volList = append(volList, vr)
+			}
+
+			record := MigrationRecord{
+				JobID:       jobID,
+				AppName:     app.Name,
+				Status:      status,
+				StartedAt:   startedAt,
+				CompletedAt: completedAt,
+				Volumes:     volList,
+			}
+			WriteMigrationHistory(m.Queries, record)
+		}
+	}
 }
 
 func newDockerClient() *client.Client {

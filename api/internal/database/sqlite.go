@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"log"
 	"os"
 
 	"dokvol/api/internal/db"
@@ -39,6 +40,11 @@ func Init() *Database {
 
 	if err := goose.Up(conn, "migrations"); err != nil {
 		panic(err)
+	}
+
+	// Scan history files on all initialized drives
+	if err := system.ScanDriveHistory(queries, system.GetDrives()); err != nil {
+		log.Printf("warning: history scan failed: %s", err)
 	}
 
 	return &Database{

@@ -420,7 +420,12 @@
 								<td class="px-4 py-2 font-mono text-xs text-muted-foreground">
 									{vs?.total_bytes != null ? formatBytes(vs.total_bytes) : '—'}
 								</td>
-								<td class="px-4 py-2 font-mono text-xs">{vol.Source}</td>
+								<td class="px-4 py-2 font-mono text-xs">
+									{vol.Source}
+									{#if vol.MigratedDriveMountpoint}
+										<Badge class="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-100 dark:hover:bg-emerald-900 ml-1 text-[10px]">→ {vol.MigratedDriveMountpoint}</Badge>
+									{/if}
+								</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
 							</tr>
 						{/each}

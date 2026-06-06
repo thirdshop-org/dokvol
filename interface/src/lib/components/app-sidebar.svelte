@@ -6,12 +6,14 @@
 	import Home from '@lucide/svelte/icons/house';
 	import Settings from '@lucide/svelte/icons/settings';
 	import AreaChart from '@lucide/svelte/icons/area-chart';
+	import HistoryIcon from '@lucide/svelte/icons/clock';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
 	const links = [
 		{ href: '/', label: 'nav.home', icon: Home },
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
+		{ href: '/history', label: 'nav.history', icon: HistoryIcon },
 		{ href: '/stats', label: 'nav.stats', icon: AreaChart },
 		{ href: '/preferences', label: 'nav.preferences', icon: Settings },
 	];

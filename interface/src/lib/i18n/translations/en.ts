@@ -9,6 +9,7 @@ const en = {
 		volumes: "Volumes",
 		applications: "Applications",
 		stats: "Statistics",
+		history: "History",
 		preferences: "Preferences",
 	},
 	dashboard: {
@@ -131,6 +132,34 @@ const en = {
 			noDest: "Please select a destination drive.",
 			noVolume: "Please select at least one volume with a destination.",
 		},
+	},
+	history: {
+		title: "History",
+		description: "All volume migrations.",
+		loading: "Loading history…",
+		empty: "No migrations found.",
+		columns: {
+			app: "Application",
+			volume: "Volume",
+			source: "Source",
+			destination: "Destination",
+			status: "Status",
+			size: "Size",
+			duration: "Duration",
+			date: "Date",
+		},
+		filters: {
+			all: "All",
+			completed: "Completed",
+			failed: "Failed",
+			byApp: "By application",
+		},
+		details: {
+			title: "Migration details",
+			noInfo: "No additional information.",
+		},
+		rescan: "Rescan",
+		rescanSuccess: "History rescanned successfully.",
 	},
 	preferences: {
 		title: "Preferences",

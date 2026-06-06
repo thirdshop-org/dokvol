@@ -25,6 +25,8 @@ export interface VolumeDetail {
 	Destination: string;
 	SystemDrive: DriveInfo | null;
 	IsMigratable: boolean;
+	MigratedDriveMountpoint?: string;
+	MigratedDestPath?: string;
 }
 
 export interface ApplicationVolumes {
@@ -125,3 +127,35 @@ export interface StatsApplication {
 }
 
 export type PreferencesResponse = Record<string, string>;
+
+export interface MigrationLogEntry {
+	id: number;
+	job_id: string;
+	app_name: string;
+	volume_name: string;
+	source_path: string;
+	source_drive?: string;
+	dest_path: string;
+	dest_drive: string;
+	total_bytes: number;
+	duration_ms: number;
+	status: string;
+	error_message?: string;
+	started_at?: string;
+	completed_at?: string;
+	created_at: string;
+}
+
+export interface HistoryListResponse {
+	entries: MigrationLogEntry[];
+	total: number;
+}
+
+export interface HistoryJobDetail {
+	job_id: string;
+	app_name: string;
+	status: string;
+	started_at?: string;
+	completed_at?: string;
+	volumes: MigrationLogEntry[];
+}

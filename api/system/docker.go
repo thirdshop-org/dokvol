@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -11,13 +12,15 @@ import (
 )
 
 type VolumeDetail struct {
-	ContainerName string
-	Name          string // Nom du volume Docker
-	Type          string // bind ou volume
-	Source        string // Chemin sur le serveur (ex: /var/lib/docker/volumes/...)
-	Destination   string // Chemin dans le conteneur (ex: /var/www/html)
-	SystemDrive   *DriveInfo
-	IsMigratable  bool
+	ContainerName       string     `json:"ContainerName"`
+	Name                string     `json:"Name"`           // Nom du volume Docker
+	Type                string     `json:"Type"`           // bind ou volume
+	Source              string     `json:"Source"`         // Chemin sur le serveur (ex: /var/lib/docker/volumes/...)
+	Destination         string     `json:"Destination"`    // Chemin dans le conteneur (ex: /var/www/html)
+	SystemDrive         *DriveInfo `json:"SystemDrive"`
+	IsMigratable        bool       `json:"IsMigratable"`
+	MigratedDriveMountpoint string `json:"MigratedDriveMountpoint,omitempty"`
+	MigratedDestPath    string     `json:"MigratedDestPath,omitempty"`
 }
 
 func (s *System) GetDockerVolumes() []VolumeDetail {
@@ -217,6 +220,24 @@ func GetApplicationsDetails(drives []DriveInfo) []Application {
 			}
 
 			volume.SystemDrive = bestMatchDrive
+
+			// Detect if volume is migrated (source is a symlink to .dokvol/ on a drive)
+			if resolved, err := filepath.EvalSymlinks(volume.Source); err == nil {
+				if idx := strings.Index(resolved, "/"+DOKVOL_FOLDER+"/"); idx != -1 {
+					driveMount := resolved[:idx]
+					for _, d := range drives {
+						if d.Mountpoint == driveMount {
+							volume.MigratedDriveMountpoint = d.Mountpoint
+							volume.MigratedDestPath = resolved
+							break
+						}
+					}
+					if volume.MigratedDriveMountpoint == "" {
+						volume.MigratedDriveMountpoint = driveMount
+						volume.MigratedDestPath = resolved
+					}
+				}
+			}
 
 			volumes[i] = volume
 

@@ -155,5 +155,42 @@ ORDER BY s.captured_at;
 -- name: DeleteOldStatsVolume :exec
 DELETE FROM stats_volume WHERE captured_at < ?;
 
+-- name: CreateMigrationLog :one
+INSERT INTO migration_log (job_id, app_name, volume_name, source_path, source_drive, dest_path, dest_drive, total_bytes, duration_ms, status, error_message, started_at, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: ListMigrationLogs :many
+SELECT * FROM migration_log
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: ListMigrationLogsByApp :many
+SELECT * FROM migration_log
+WHERE app_name = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: ListMigrationLogsByDrive :many
+SELECT * FROM migration_log
+WHERE dest_drive = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: ListMigrationLogsByStatus :many
+SELECT * FROM migration_log
+WHERE status = ?
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: CountMigrationLogs :one
+SELECT COUNT(*) FROM migration_log;
+
+-- name: GetMigrationLogByJobID :many
+SELECT * FROM migration_log WHERE job_id = ? ORDER BY id;
+
+-- name: DeleteMigrationLog :exec
+DELETE FROM migration_log WHERE id = ?;
+
 -- name: DeleteOldStatsDrive :exec
 DELETE FROM stats_drive WHERE captured_at < ?;
