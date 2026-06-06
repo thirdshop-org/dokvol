@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -608,4 +609,108 @@ func TestE2E_PartialFailure(t *testing.T) {
 			t.Logf("warning: failed to restore %s: %v", sourceDir, err)
 		}
 	}
+}
+
+func TestE2E_MigrationHistory(t *testing.T) {
+	ctx := context.Background()
+	cli := testutil.DockerClient(t)
+	testutil.PullImage(t, testutil.AlpineImage)
+
+	suffix := uuid.New().String()[:8]
+	volName := "e2e-hist-vol-" + suffix
+	ctrName := "/e2e-hist-ctr-" + suffix
+
+	testutil.CreateVolume(t, cli, volName)
+	testutil.CreateContainer(t, cli, ctrName, testutil.AlpineImage,
+		[]mount.Mount{{Type: mount.TypeVolume, Source: volName, Target: "/data"}},
+		[]string{"sleep", "9999"},
+	)
+	testutil.StartContainer(t, cli, ctrName)
+	testutil.WaitContainerRunning(t, cli, ctrName)
+	testutil.WriteData(t, cli, ctrName, "/data/test.bin", 5)
+
+	driveMount := testutil.CreateLoopDrive(t, 100)
+	drive := testutil.WaitForDrive(t, driveMount)
+	app := testutil.WaitForApp(t, ctrName)
+
+	db := testutil.InitTestDB(t)
+	mm := system.NewMigrationManager(db)
+	volOpts := testutil.BuildVolumeOpts(app, drive)
+
+	jobID, err := mm.StartJob(ctx, app.Name, *app, volOpts)
+	if err != nil {
+		t.Fatalf("StartJob: %v", err)
+	}
+	t.Logf("history test job %s started", jobID)
+
+	job := testutil.PollJob(t, mm, jobID, 90*time.Second)
+	if job.Status != system.JobCompleted {
+		t.Fatalf("expected completed, got %s (volumes: %+v)", job.Status, job.Volumes)
+	}
+
+	// 1. Verify history JSON file exists on destination drive
+	historyFile := filepath.Join(driveMount, system.DOKVOL_FOLDER, system.HISTORY_FOLDER, jobID+".json")
+	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
+		t.Fatalf("history JSON file not found: %s", historyFile)
+	}
+	t.Logf("history file exists: %s", historyFile)
+
+	// 2. Verify migration_log entries in DB
+	count, err := db.CountMigrationLogs(ctx)
+	if err != nil {
+		t.Fatalf("CountMigrationLogs: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("expected at least 1 migration_log entry, got 0")
+	}
+
+	logs, err := db.GetMigrationLogByJobID(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListMigrationLogsByJobID: %v", err)
+	}
+	if len(logs) == 0 {
+		t.Fatal("expected migration_log entries for job, got 0")
+	}
+	if logs[0].JobID != jobID {
+		t.Fatalf("expected job_id %s, got %s", jobID, logs[0].JobID)
+	}
+	if logs[0].Status != string(system.JobCompleted) {
+		t.Fatalf("expected status %s, got %s", system.JobCompleted, logs[0].Status)
+	}
+	if logs[0].DestDrive != driveMount {
+		t.Fatalf("expected dest_drive %s, got %s", driveMount, logs[0].DestDrive)
+	}
+	if logs[0].TotalBytes == 0 {
+		t.Fatal("expected total_bytes > 0")
+	}
+	if logs[0].DurationMs == 0 {
+		t.Fatal("expected duration_ms > 0")
+	}
+	if !logs[0].StartedAt.Valid {
+		t.Fatal("expected started_at to be set")
+	}
+	if !logs[0].CompletedAt.Valid {
+		t.Fatal("expected completed_at to be set")
+	}
+	if logs[0].SourcePath == "" {
+		t.Fatal("expected source_path to be set")
+	}
+	if logs[0].DestPath == "" {
+		t.Fatal("expected dest_path to be set")
+	}
+
+	// 3. Test ScanDriveHistory is idempotent (no duplicates on re-scan)
+	countBeforeRescan := count
+	drives := system.GetDrives()
+	if err := system.ScanDriveHistory(db, drives); err != nil {
+		t.Fatalf("ScanDriveHistory: %v", err)
+	}
+	countAfterRescan, err := db.CountMigrationLogs(ctx)
+	if err != nil {
+		t.Fatalf("CountMigrationLogs after rescan: %v", err)
+	}
+	if countAfterRescan != countBeforeRescan {
+		t.Fatalf("rescan should be idempotent: expected %d logs, got %d", countBeforeRescan, countAfterRescan)
+	}
+	t.Logf("rescan idempotent: %d entries unchanged", countAfterRescan)
 }
