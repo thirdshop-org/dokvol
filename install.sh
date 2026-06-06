@@ -15,6 +15,22 @@ echo " | (_| | (_) ||   <  \ V / (_) | |"
 echo "  \__,_|\___/ |_|\_\  \_/ \___/|_|"
 echo ""
 
+wait_for_port_free() {
+    port="$1"
+    timeout=10
+    i=0
+    while [ $i -lt $timeout ]; do
+        if ! ss -tln 2>/dev/null | grep -q ":$port "; then
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    echo "❌ Le port ${port} est toujours occupé après ${timeout}s."
+    echo "   Vérifiez avec : sudo lsof -i :${port}"
+    exit 1
+}
+
 case "$ACTION" in
   install)
     echo "🚀 Installation de DokVol ${VERSION}..."
@@ -42,6 +58,7 @@ case "$ACTION" in
     docker pull "${DOKVOL_IMAGE}:${VERSION}"
 
     echo "⚡ Démarrage du conteneur..."
+    wait_for_port_free $PORT
     docker run -d \
         --name dokvol \
         --restart unless-stopped \
@@ -68,6 +85,7 @@ case "$ACTION" in
     docker pull "${DOKVOL_IMAGE}:${VERSION}"
 
     echo "⚡ Démarrage du nouveau conteneur..."
+    wait_for_port_free $PORT
     docker run -d \
         --name dokvol \
         --restart unless-stopped \
