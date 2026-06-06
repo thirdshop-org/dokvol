@@ -59,14 +59,6 @@ publish:
         docker tag "$GHCR_IMAGE:$CI_COMMIT_SHORT_SHA" "$GHCR_IMAGE:$tag"
         docker push "$GHCR_IMAGE:$tag"
       done
-    - |
-      if [ -n "$CI_REGISTRY" ]; then
-        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY" || true
-        for tag in $TAGS; do
-          docker tag "$GHCR_IMAGE:$tag" "$CI_REGISTRY_IMAGE:$tag" || true
-          docker push "$CI_REGISTRY_IMAGE:$tag" || echo "⚠️ GitLab Registry: $tag non poussé"
-        done
-      fi
   needs:
     - job: build
       artifacts: false

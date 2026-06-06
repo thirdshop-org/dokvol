@@ -2,8 +2,7 @@
 set -e
 
 # Configuration
-DOKVOL_IMAGE="${DOKVOL_IMAGE:-registry.gitlab.thirdshop.fr/thirdshop/dokvol}"
-FALLBACK_IMAGE="${DOKVOL_FALLBACK_IMAGE:-ghcr.io/thirdshop-org/dokvol}"
+DOKVOL_IMAGE="${DOKVOL_IMAGE:-ghcr.io/thirdshop-org/dokvol}"
 VERSION="${DOKVOL_VERSION:-latest}"
 PORT="${DOKVOL_PORT:-8080}"
 
@@ -38,16 +37,7 @@ echo ""
 echo "🚀 Installation de DokVol ${VERSION}..."
 
 echo "📥 Pulling ${DOKVOL_IMAGE}:${VERSION} ..."
-if ! docker pull "${DOKVOL_IMAGE}:${VERSION}"; then
-    if [ -n "$FALLBACK_IMAGE" ]; then
-        echo "⚠️ Échec, tentative avec le registre secondaire : ${FALLBACK_IMAGE}"
-        DOKVOL_IMAGE="$FALLBACK_IMAGE"
-        docker pull "${DOKVOL_IMAGE}:${VERSION}"
-    else
-        echo "❌ Échec du pull. Utilisez DOKVOL_IMAGE pour spécifier une autre image."
-        exit 1
-    fi
-fi
+docker pull "${DOKVOL_IMAGE}:${VERSION}"
 
 # ── Nettoyage ancien container ─────────────────────────────────────
 
