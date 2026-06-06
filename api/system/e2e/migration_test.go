@@ -513,8 +513,8 @@ func TestE2E_PartialFailure(t *testing.T) {
 
 		mu.Lock()
 		v1 := testutil.FindVolume(job.Volumes, volName1)
-		if !chmodDone && v1 != nil && v1.Step == system.StepCompleted {
-			t.Log("vol1 completed, breaking vol2 now")
+		if !chmodDone && v1 != nil && v1.Step != system.StepPending {
+			t.Logf("vol1 step=%s, breaking vol2 now", v1.Step)
 			sourceDir := testutil.VolumeDataRoot(volName2)
 			backupDir := sourceDir + ".bak"
 			if err := os.Rename(sourceDir, backupDir); err != nil {
