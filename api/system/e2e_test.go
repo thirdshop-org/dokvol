@@ -748,6 +748,15 @@ func TestE2E_ErrorHandling(t *testing.T) {
 	})
 }
 
+func findVolume(volumes []VolumeRow, name string) *VolumeRow {
+	for i := range volumes {
+		if volumes[i].VolumeName == name {
+			return &volumes[i]
+		}
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // 5. Partial failure: 2 volumes, first succeeds, second fails mid-migration
 // ---------------------------------------------------------------------------
@@ -811,7 +820,8 @@ func TestE2E_PartialFailure(t *testing.T) {
 		}
 
 		mu.Lock()
-		if !chmodDone && len(job.Volumes) > 0 && job.Volumes[0].Step == StepCompleted {
+		v1 := findVolume(job.Volumes, volName1)
+		if !chmodDone && v1 != nil && v1.Step == StepCompleted {
 			// Volume 1 is done → rename volume 2 source to make it inaccessible
 			t.Log("vol1 completed, breaking vol2 now")
 			sourceDir := volumeDataRoot(volName2)
@@ -826,7 +836,7 @@ func TestE2E_PartialFailure(t *testing.T) {
 		if job.Status == JobCompleted || job.Status == JobFailed {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	job := pollJob(t, mm, jobID, 10*time.Second) // should be nearly done
