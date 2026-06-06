@@ -368,7 +368,7 @@
 			<div class="rounded-lg border" class:border-primary={busy}>
 				<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
 					<h2 class="font-semibold">
-						{app.ContainerName.replace(/^\//, '')}
+						<a href="/applications/{app.ContainerName.replace(/^\//, '')}" class="hover:underline">{app.ContainerName.replace(/^\//, '')}</a>
 						<Badge class={statusClass(app.Status)}>{statusLabel(app.Status)}</Badge>
 						{#if busy}
 							<span class="ml-2 inline-flex items-center gap-1 text-xs text-primary">

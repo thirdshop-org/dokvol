@@ -63,12 +63,17 @@ export interface VolumeProgress {
 	total_bytes: number;
 	transferred_bytes: number;
 	error?: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface MigrationJob {
 	id: string;
 	app_name: string;
 	status: 'pending' | 'running' | 'completed' | 'failed';
+	created_at: string;
+	updated_at: string;
+	completed_at: string;
 	volumes: VolumeProgress[];
 }
 

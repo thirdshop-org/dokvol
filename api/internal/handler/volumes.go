@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"dokvol/api/system"
 
@@ -26,18 +27,23 @@ type startMigrationResponse struct {
 }
 
 type volumeProgressJSON struct {
-	VolumeName       string `json:"volume_name"`
-	Step             string `json:"step"`
-	TotalBytes       int64  `json:"total_bytes"`
-	TransferredBytes int64  `json:"transferred_bytes"`
-	Error            string `json:"error,omitempty"`
+	VolumeName       string    `json:"volume_name"`
+	Step             string    `json:"step"`
+	TotalBytes       int64     `json:"total_bytes"`
+	TransferredBytes int64     `json:"transferred_bytes"`
+	Error            string    `json:"error,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type jobJSON struct {
-	ID      string              `json:"id"`
-	AppName string              `json:"app_name"`
-	Status  string              `json:"status"`
-	Volumes []volumeProgressJSON `json:"volumes"`
+	ID          string              `json:"id"`
+	AppName     string              `json:"app_name"`
+	Status      string              `json:"status"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	CompletedAt time.Time           `json:"completed_at"`
+	Volumes     []volumeProgressJSON `json:"volumes"`
 }
 
 func jobToJSON(job *system.Job) jobJSON {
@@ -49,13 +55,18 @@ func jobToJSON(job *system.Job) jobJSON {
 			TotalBytes:       job.Volumes[i].TotalBytes,
 			TransferredBytes: job.Volumes[i].Transferred,
 			Error:            job.Volumes[i].Error,
+			CreatedAt:        job.Volumes[i].CreatedAt,
+			UpdatedAt:        job.Volumes[i].UpdatedAt,
 		}
 	}
 	return jobJSON{
-		ID:      job.ID,
-		AppName: job.AppName,
-		Status:  string(job.Status),
-		Volumes: vols,
+		ID:          job.ID,
+		AppName:     job.AppName,
+		Status:      string(job.Status),
+		CreatedAt:   job.CreatedAt,
+		UpdatedAt:   job.UpdatedAt,
+		CompletedAt: job.CompletedAt,
+		Volumes:     vols,
 	}
 }
 

@@ -47,13 +47,18 @@ type VolumeRow struct {
 	DestPath    string
 	DestDrive   string
 	Error       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Job struct {
-	ID      string
-	AppName string
-	Status  MigrationJobStatus
-	Volumes []VolumeRow
+	ID          string
+	AppName     string
+	Status      MigrationJobStatus
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	CompletedAt time.Time
+	Volumes     []VolumeRow
 }
 
 type ProgressFn func(VolumeName, Step string, TransferredBytes, TotalBytes int64)
@@ -83,11 +88,14 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 		return "", fmt.Errorf("create job: %w", err)
 	}
 
+	now := time.Now()
 	job := &Job{
-		ID:      jobID,
-		AppName: appName,
-		Status:  JobPending,
-		Volumes: make([]VolumeRow, len(volumes)),
+		ID:        jobID,
+		AppName:   appName,
+		Status:    JobPending,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Volumes:   make([]VolumeRow, len(volumes)),
 	}
 
 	for i, vol := range volumes {
@@ -113,6 +121,8 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 			SourceDrive: getDriveForSourcePath(vol.VolumeDetail.Source, GetDrives()),
 			DestPath:    destPath,
 			DestDrive:   vol.DestinationDrive.Mountpoint,
+			CreatedAt:   now,
+			UpdatedAt:   now,
 		}
 		job.Volumes[i].mu = sync.Mutex{}
 	}
@@ -133,10 +143,13 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 
 	if ok {
 		copy := &Job{
-			ID:      job.ID,
-			AppName: job.AppName,
-			Status:  job.Status,
-			Volumes: make([]VolumeRow, len(job.Volumes)),
+			ID:          job.ID,
+			AppName:     job.AppName,
+			Status:      job.Status,
+			CreatedAt:   job.CreatedAt,
+			UpdatedAt:   job.UpdatedAt,
+			CompletedAt: job.CompletedAt,
+			Volumes:     make([]VolumeRow, len(job.Volumes)),
 		}
 		for i := range job.Volumes {
 			job.Volumes[i].mu.Lock()
@@ -151,6 +164,8 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 				DestPath:    job.Volumes[i].DestPath,
 				DestDrive:   job.Volumes[i].DestDrive,
 				Error:       job.Volumes[i].Error,
+				CreatedAt:   job.Volumes[i].CreatedAt,
+				UpdatedAt:   job.Volumes[i].UpdatedAt,
 			}
 			job.Volumes[i].mu.Unlock()
 		}
@@ -171,6 +186,18 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 		ID:      dbJob.ID,
 		AppName: dbJob.AppName,
 		Status:  MigrationJobStatus(dbJob.Status),
+		CreatedAt: func() time.Time {
+			if dbJob.CreatedAt.Valid {
+				return dbJob.CreatedAt.Time
+			}
+			return time.Time{}
+		}(),
+		UpdatedAt: func() time.Time {
+			if dbJob.UpdatedAt.Valid {
+				return dbJob.UpdatedAt.Time
+			}
+			return time.Time{}
+		}(),
 		Volumes: make([]VolumeRow, len(progressRows)),
 	}
 
@@ -185,6 +212,18 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 			DestPath:    p.DestPath,
 			DestDrive:   p.DestDrive,
 			Error:       p.ErrorMessage.String,
+			CreatedAt: func() time.Time {
+				if p.CreatedAt.Valid {
+					return p.CreatedAt.Time
+				}
+				return time.Time{}
+			}(),
+			UpdatedAt: func() time.Time {
+				if p.UpdatedAt.Valid {
+					return p.UpdatedAt.Time
+				}
+				return time.Time{}
+			}(),
 		}
 	}
 
@@ -212,10 +251,13 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 
 		if mem, ok := m.jobs[jobID]; ok {
 			copy := &Job{
-				ID:      mem.ID,
-				AppName: mem.AppName,
-				Status:  mem.Status,
-				Volumes: make([]VolumeRow, len(mem.Volumes)),
+				ID:          mem.ID,
+				AppName:     mem.AppName,
+				Status:      mem.Status,
+				CreatedAt:   mem.CreatedAt,
+				UpdatedAt:   mem.UpdatedAt,
+				CompletedAt: mem.CompletedAt,
+				Volumes:     make([]VolumeRow, len(mem.Volumes)),
 			}
 			for i := range mem.Volumes {
 				mem.Volumes[i].mu.Lock()
@@ -229,6 +271,8 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 					DestPath:    mem.Volumes[i].DestPath,
 					DestDrive:   mem.Volumes[i].DestDrive,
 					Error:       mem.Volumes[i].Error,
+					CreatedAt:   mem.Volumes[i].CreatedAt,
+					UpdatedAt:   mem.Volumes[i].UpdatedAt,
 				}
 				mem.Volumes[i].mu.Unlock()
 			}
@@ -240,6 +284,18 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 			ID:      jobID,
 			AppName: row.AppName,
 			Status:  MigrationJobStatus(row.Status),
+			CreatedAt: func() time.Time {
+				if row.JobCreatedAt.Valid {
+					return row.JobCreatedAt.Time
+				}
+				return time.Time{}
+			}(),
+			UpdatedAt: func() time.Time {
+				if row.JobUpdatedAt.Valid {
+					return row.JobUpdatedAt.Time
+				}
+				return time.Time{}
+			}(),
 		}
 		for _, r := range rows {
 			if r.JobID != jobID {
@@ -255,6 +311,18 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 				DestPath:    r.DestPath,
 				DestDrive:   r.DestDrive,
 				Error:       r.ErrorMessage.String,
+				CreatedAt: func() time.Time {
+					if r.ProgressCreatedAt.Valid {
+						return r.ProgressCreatedAt.Time
+					}
+					return time.Time{}
+				}(),
+				UpdatedAt: func() time.Time {
+					if r.ProgressUpdatedAt.Valid {
+						return r.ProgressUpdatedAt.Time
+					}
+					return time.Time{}
+				}(),
 			})
 		}
 		jobs = append(jobs, job)
@@ -274,6 +342,7 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 	m.mu.Lock()
 	if j, ok := m.jobs[jobID]; ok {
 		j.Status = JobRunning
+		j.UpdatedAt = time.Now()
 	}
 	m.mu.Unlock()
 
@@ -376,6 +445,8 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 	m.mu.Lock()
 	if j, ok := m.jobs[jobID]; ok {
 		j.Status = MigrationJobStatus(status)
+		j.CompletedAt = completedAt
+		j.UpdatedAt = time.Now()
 	}
 	m.mu.Unlock()
 
