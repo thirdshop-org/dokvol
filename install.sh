@@ -73,7 +73,11 @@ case "$ACTION" in
     echo ""
     echo "✅ DokVol ${VERSION} est installé et s'exécute sur le port ${PORT}"
     echo "   Image : ${DOKVOL_IMAGE}:${VERSION}"
-    echo "👉 Accédez à l'interface : http://$(curl -s ifconfig.me):${PORT}"
+    IP=$(curl -s ifconfig.me)
+    case "$IP" in
+        *:*) IP="[$IP]" ;;
+    esac
+    echo "👉 Accédez à l'interface : http://${IP}:${PORT}"
     ;;
 
   update|upgrade)
@@ -99,7 +103,11 @@ case "$ACTION" in
 
     echo ""
     echo "✅ DokVol mis à jour vers ${VERSION}"
-    echo "👉 Accédez à l'interface : http://$(curl -s ifconfig.me):${PORT}"
+    IP=$(curl -s ifconfig.me)
+    case "$IP" in
+        *:*) IP="[$IP]" ;;
+    esac
+    echo "👉 Accédez à l'interface : http://${IP}:${PORT}"
     ;;
 
   *)
