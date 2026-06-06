@@ -9,6 +9,7 @@ const en = {
 		volumes: "Volumes",
 		applications: "Applications",
 		stats: "Statistics",
+		preferences: "Preferences",
 	},
 	dashboard: {
 		title: "Dashboard",
@@ -130,6 +131,16 @@ const en = {
 			noDest: "Please select a destination drive.",
 			noVolume: "Please select at least one volume with a destination.",
 		},
+	},
+	preferences: {
+		title: "Preferences",
+		description: "System configuration settings.",
+		loading: "Loading preferences…",
+		noData: "No preferences configured.",
+		stats_interval_seconds: "Stats collection interval",
+		stats_interval_seconds_hint: "How often stats are collected (in seconds).",
+		stats_retention_days: "Stats retention",
+		stats_retention_days_hint: "How many days stats are kept.",
 	},
 	stats: {
 		title: "Statistics",

@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse } from '$lib/types';
 
 const BASE = '/api';
 
@@ -90,6 +90,10 @@ export function getStatsDrive(mountpoint: string, from?: string, to?: string): P
 	if (from) params.set('from', from);
 	if (to) params.set('to', to);
 	return fetchJson<StatsDrive[]>(`/stats/drives?${params}`);
+}
+
+export function getPreferences(): Promise<PreferencesResponse> {
+	return fetchJson<PreferencesResponse>('/preferences');
 }
 
 export function getStatsApplication(name: string, from?: string, to?: string): Promise<StatsApplication[]> {

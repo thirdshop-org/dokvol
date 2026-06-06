@@ -123,3 +123,5 @@ export interface StatsApplication {
 	container_name: string;
 	total_bytes: number | null;
 }
+
+export type PreferencesResponse = Record<string, string>;

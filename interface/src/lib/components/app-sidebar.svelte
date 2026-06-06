@@ -4,7 +4,7 @@
 	import Box from '@lucide/svelte/icons/box';
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import Home from '@lucide/svelte/icons/house';
-	import Layers from '@lucide/svelte/icons/layers';
+	import Settings from '@lucide/svelte/icons/settings';
 	import AreaChart from '@lucide/svelte/icons/area-chart';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
@@ -13,6 +13,7 @@
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
 		{ href: '/stats', label: 'nav.stats', icon: AreaChart },
+		{ href: '/preferences', label: 'nav.preferences', icon: Settings },
 	];
 </script>
 

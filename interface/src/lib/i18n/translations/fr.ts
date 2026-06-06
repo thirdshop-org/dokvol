@@ -9,6 +9,7 @@ const fr = {
 		volumes: "Volumes",
 		applications: "Applications",
 		stats: "Statistiques",
+		preferences: "Préférences",
 	},
 	dashboard: {
 		title: "Tableau de bord",
@@ -130,6 +131,16 @@ const fr = {
 			noDest: "Veuillez sélectionner un disque de destination.",
 			noVolume: "Veuillez sélectionner au moins un volume avec une destination.",
 		},
+	},
+	preferences: {
+		title: "Préférences",
+		description: "Paramètres de configuration du système.",
+		loading: "Chargement des préférences…",
+		noData: "Aucune préférence configurée.",
+		stats_interval_seconds: "Intervalle de collecte",
+		stats_interval_seconds_hint: "Fréquence de collecte des statistiques (en secondes).",
+		stats_retention_days: "Rétention des stats",
+		stats_retention_days_hint: "Nombre de jours de conservation des statistiques.",
 	},
 	stats: {
 		title: "Statistiques",
