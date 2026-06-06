@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getHistory, getHistoryJob, rescanHistory, ApiError } from '$lib/api';
+	import { getHistory, getHistoryJob, rescanHistory, getHistoryAppNames, ApiError } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import type { MigrationLogEntry, HistoryJobDetail } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { LoaderCircle, RotateCw, Search } from '@lucide/svelte';
+	import { LoaderCircle, RotateCw, Search, ChevronDown } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -17,7 +17,10 @@
 	let rescanning = $state(false);
 	let rescanMessage = $state<string | null>(null);
 
+	let appNames = $state<string[]>([]);
 	let filterApp = $state('');
+	let filterAppOpen = $state(false);
+	let filterAppFocused = $state(false);
 	let filterStatus = $state('');
 	let offset = $state(0);
 	const limit = 50;
@@ -106,7 +109,10 @@
 		load();
 	}
 
-	onMount(load);
+	onMount(async () => {
+		try { appNames = await getHistoryAppNames(); } catch { /* ignore */ }
+		load();
+	});
 </script>
 
 <div class="space-y-6">
@@ -130,14 +136,26 @@
 	{/if}
 
 	<div class="flex flex-wrap gap-3 items-end">
-		<div class="relative">
+		<div class="relative" role="combobox" aria-expanded={filterAppOpen}>
 			<Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				bind:value={filterApp}
 				placeholder={$t('history.filters.byApp')}
 				class="pl-9 w-56"
-				oninput={applyFilter}
+				oninput={() => { filterAppOpen = true; applyFilter(); }}
+				onfocus={() => { filterAppOpen = true; filterAppFocused = true; }}
+				onblur={() => setTimeout(() => { filterAppOpen = false; filterAppFocused = false; }, 150)}
 			/>
+			{#if filterAppOpen && appNames.length > 0}
+				<div class="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-background shadow-lg max-h-48 overflow-y-auto">
+					{#each appNames.filter(n => !filterApp || n.toLowerCase().includes(filterApp.toLowerCase())) as name}
+						<button
+							class="w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+							onmousedown={() => { filterApp = name; filterAppOpen = false; applyFilter(); }}
+						>{name}</button>
+					{/each}
+				</div>
+			{/if}
 		</div>
 		<select
 			class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"

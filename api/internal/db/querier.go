@@ -33,6 +33,7 @@ type Querier interface {
 	GetPreference(ctx context.Context, key string) (UserPreference, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)
+	ListDistinctAppNames(ctx context.Context) ([]string, error)
 	ListDrives(ctx context.Context) ([]Drive, error)
 	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
 	ListMigrationJobs(ctx context.Context) ([]MigrationJob, error)

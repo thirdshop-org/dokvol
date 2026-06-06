@@ -167,6 +167,18 @@ func GetHistoryJob(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func ListHistoryAppNames(c *gin.Context) {
+	names, err := MigrationManager.Queries.ListDistinctAppNames(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, system.NewAPIError("INTERNAL_ERROR", err.Error(), nil))
+		return
+	}
+	if names == nil {
+		names = []string{}
+	}
+	c.JSON(http.StatusOK, names)
+}
+
 func RescanHistory(c *gin.Context) {
 	drives := system.GetDrives()
 	if err := system.ScanDriveHistory(MigrationManager.Queries, drives); err != nil {

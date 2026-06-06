@@ -118,6 +118,10 @@ export function getStatsMigration(): Promise<MigrationStats> {
 	return fetchJson<MigrationStats>('/stats/migrations');
 }
 
+export function getHistoryAppNames(): Promise<string[]> {
+	return fetchJson<string[]>('/history/names');
+}
+
 export function getHistoryJob(jobId: string): Promise<HistoryJobDetail> {
 	return fetchJson<HistoryJobDetail>(`/history/${jobId}`);
 }

@@ -50,8 +50,9 @@ var serverCmd = &cobra.Command{
 			api.GET("/stats/migrations", handler.ListStatsMigration)
 
 			api.GET("/history", handler.ListHistory)
-			api.GET("/history/:id", handler.GetHistoryJob)
+			api.GET("/history/names", handler.ListHistoryAppNames)
 			api.POST("/history/rescan", handler.RescanHistory)
+			api.GET("/history/:id", handler.GetHistoryJob)
 		}
 
 		staticDir := "/usr/local/share/dokvol/static"

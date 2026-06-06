@@ -519,6 +519,33 @@ func (q *Queries) GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, er
 	return i, err
 }
 
+const listDistinctAppNames = `-- name: ListDistinctAppNames :many
+SELECT DISTINCT app_name FROM migration_log ORDER BY app_name
+`
+
+func (q *Queries) ListDistinctAppNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listDistinctAppNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var app_name string
+		if err := rows.Scan(&app_name); err != nil {
+			return nil, err
+		}
+		items = append(items, app_name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDrives = `-- name: ListDrives :many
 SELECT id, device, mountpoint, fstype, total_gb, free_gb, used_pct, created_at FROM drive ORDER BY mountpoint
 `

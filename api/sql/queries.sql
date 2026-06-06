@@ -195,6 +195,9 @@ DELETE FROM migration_log WHERE id = ?;
 -- name: DeleteOldStatsDrive :exec
 DELETE FROM stats_drive WHERE captured_at < ?;
 
+-- name: ListDistinctAppNames :many
+SELECT DISTINCT app_name FROM migration_log ORDER BY app_name;
+
 -- name: GetMigrationStats :one
 SELECT
   CAST(COUNT(*) AS INTEGER) as total_count,
