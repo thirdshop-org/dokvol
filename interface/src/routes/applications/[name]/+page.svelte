@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { getApplications, getMigrationStatus, getActiveMigrations, getHistory, getHistoryJob, getStatsVolume, ApiError } from '$lib/api';
+	import { getApplications, getMigrationStatus, getActiveMigrations, getHistory, getHistoryJob, getStatsVolume, stopApplication, startApplication, restartApplication, ApiError } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, VolumeDetail, MigrationJob, MigrationLogEntry, HistoryJobDetail, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { ArrowLeft, Clock, LoaderCircle } from '@lucide/svelte';
+	import { ArrowLeft, Clock, LoaderCircle, Square, Play, RotateCcw, Search } from '@lucide/svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import FileExplorer from '$lib/components/file-explorer.svelte';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -23,6 +25,12 @@
 
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+	let browseOpen = $state(false);
+	let browseTarget = $state<{ container: string; path: string; volumeName: string } | null>(null);
+	let actionLoading = $state<string | null>(null);
+	let confirmAction = $state<'stop' | 'restart' | null>(null);
+	let confirmOpen = $state(false);
 
 	const appName = $derived($page.params.name);
 	const fullAppName = $derived('/' + appName);
@@ -143,6 +151,33 @@
 		catch { historyDetail = null; }
 		finally { historyDetailLoading = false; }
 	}
+
+	function handleAction(action: 'stop' | 'start' | 'restart') {
+		if (action === 'stop' || action === 'restart') {
+			confirmAction = action;
+			confirmOpen = true;
+			return;
+		}
+		executeAction(action);
+	}
+
+	async function executeAction(action: 'stop' | 'start' | 'restart') {
+		actionLoading = action;
+		try {
+			if (action === 'stop') await stopApplication(fullAppName);
+			else if (action === 'start') await startApplication(fullAppName);
+			else await restartApplication(fullAppName);
+			const apps = await getApplications();
+			const found = apps.find(a => a.ContainerName.replace(/^\//, '') === appName);
+			if (found) app = found;
+		} catch {
+			// handled via loading state
+		} finally {
+			actionLoading = null;
+			confirmAction = null;
+			confirmOpen = false;
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -155,14 +190,45 @@
 		</div>
 	{:else if app}
 		<!-- Header -->
-		<div class="flex items-center gap-3">
-			<Button variant="outline" size="sm" href="/applications"><ArrowLeft class="size-3.5" /></Button>
-			<div>
-				<h1 class="text-2xl font-bold tracking-tight">{appName}</h1>
-				<div class="flex items-center gap-2 text-sm text-muted-foreground">
-					<Badge class={statusClass(app.Status)}>{statusLabel(app.Status)}</Badge>
-					<span>({$t('applications.volumeCount', { n: app.Volumes.length })})</span>
+		<div class="flex items-start justify-between gap-3">
+			<div class="flex items-center gap-3">
+				<Button variant="outline" size="sm" href="/applications"><ArrowLeft class="size-3.5" /></Button>
+				<div>
+					<h1 class="text-2xl font-bold tracking-tight">{appName}</h1>
+					<div class="flex items-center gap-2 text-sm text-muted-foreground">
+						<Badge class={statusClass(app.Status)}>{statusLabel(app.Status)}</Badge>
+						<span>({$t('applications.volumeCount', { n: app.Volumes.length })})</span>
+					</div>
 				</div>
+			</div>
+			<div class="flex gap-2">
+				{#if app.Status === 'running'}
+					<Button size="sm" variant="outline" onclick={() => handleAction('stop')} disabled={actionLoading !== null}>
+						{#if actionLoading === 'stop'}
+							<LoaderCircle class="size-3.5 animate-spin" />
+						{:else}
+							<Square class="size-3.5" />
+						{/if}
+						{$t('applications.stop')}
+					</Button>
+					<Button size="sm" variant="outline" onclick={() => handleAction('restart')} disabled={actionLoading !== null}>
+						{#if actionLoading === 'restart'}
+							<LoaderCircle class="size-3.5 animate-spin" />
+						{:else}
+							<RotateCcw class="size-3.5" />
+						{/if}
+						{$t('applications.restart')}
+					</Button>
+				{:else}
+					<Button size="sm" variant="outline" onclick={() => handleAction('start')} disabled={actionLoading !== null}>
+						{#if actionLoading === 'start'}
+							<LoaderCircle class="size-3.5 animate-spin" />
+						{:else}
+							<Play class="size-3.5" />
+						{/if}
+						{$t('applications.start')}
+					</Button>
+				{/if}
 			</div>
 		</div>
 
@@ -242,6 +308,7 @@
 						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.source')}</th>
 						<th class="px-4 py-2 text-left font-medium">Drive</th>
 						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.destination')}</th>
+						<th class="px-4 py-2 text-center font-medium">{$t('fileExplorer.browse')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -276,6 +343,15 @@
 								{/if}
 							</td>
 							<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>
+							<td class="px-4 py-2 text-center">
+								<button
+									onclick={() => { browseTarget = { container: vol.ContainerName, path: vol.Destination, volumeName: vol.Name || vol.Destination }; browseOpen = true; }}
+									class="inline-flex items-center justify-center size-7 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+									aria-label={$t('fileExplorer.browse')}
+								>
+									<Search class="size-3.5" />
+								</button>
+							</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -377,3 +453,36 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Confirmation Stop / Restart -->
+<Dialog.Root bind:open={confirmOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>
+				{confirmAction === 'stop' ? $t('applications.confirm.stopTitle') : $t('applications.confirm.restartTitle')}
+			</Dialog.Title>
+			<Dialog.Description>
+				{confirmAction === 'stop' ? $t('applications.confirm.stopDesc', { name: appName ?? '' }) : $t('applications.confirm.restartDesc', { name: appName ?? '' })}
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="flex gap-2">
+			<Button variant="outline" onclick={() => { confirmAction = null; confirmOpen = false; }}>
+				{$t('applications.confirm.cancel')}
+			</Button>
+			<Button
+				variant={confirmAction === 'stop' ? 'destructive' : 'default'}
+				onclick={() => confirmAction && executeAction(confirmAction)}
+			>
+				{confirmAction === 'stop' ? $t('applications.stop') : $t('applications.restart')}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Sheet.Root bind:open={browseOpen}>
+	<Sheet.Content side="right" class="sm:max-w-2xl p-0">
+		{#if browseTarget}
+			<FileExplorer container={browseTarget.container} initialPath={browseTarget.path} volumeName={browseTarget.volumeName} />
+		{/if}
+	</Sheet.Content>
+</Sheet.Root>

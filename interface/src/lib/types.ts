@@ -177,3 +177,33 @@ export interface HistoryJobDetail {
 	completed_at?: string;
 	volumes: MigrationLogEntry[];
 }
+
+export interface BrowseRequest {
+	container: string;
+	path: string;
+}
+
+export interface FileEntry {
+	name: string;
+	is_dir: boolean;
+	size: number;
+	mode: string;
+	mod_time: string;
+}
+
+export interface BrowseResponse {
+	entries: FileEntry[];
+	path: string;
+}
+
+export interface ReadFileRequest {
+	container: string;
+	path: string;
+}
+
+export interface ReadFileResponse {
+	content: string;
+	truncated: boolean;
+	binary: boolean;
+	size: number;
+}

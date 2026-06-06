@@ -31,6 +31,9 @@ var serverCmd = &cobra.Command{
 		api := r.Group("/api")
 		{
 			api.GET("/applications", handler.GetApplications)
+			api.POST("/applications/:name/stop", handler.StopApplication)
+			api.POST("/applications/:name/start", handler.StartApplication)
+			api.POST("/applications/:name/restart", handler.RestartApplication)
 			api.GET("/volumes", handler.GetVolumes)
 			api.GET("/drives", handler.GetDrives)
 			api.POST("/drives/init", handler.InitDrive)
@@ -41,6 +44,8 @@ var serverCmd = &cobra.Command{
 			api.GET("/volumes/migrate", handler.GetMigrationJobs)
 			api.GET("/volumes/migrate/:id", handler.GetMigrationJob)
 			api.DELETE("/volumes", handler.DeleteVolumes)
+			api.POST("/volumes/browse", handler.BrowseVolume)
+			api.POST("/volumes/read-file", handler.ReadVolumeFile)
 
 			api.GET("/preferences", handler.GetPreferences)
 			api.PUT("/preferences", handler.UpdatePreference)

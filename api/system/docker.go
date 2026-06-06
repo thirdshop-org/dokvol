@@ -3,9 +3,11 @@ package system
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/moby/moby/client"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -176,6 +178,99 @@ func DeleteVolumes(vols []VolumeDetail) []error {
 		}
 	}
 	return errs
+}
+
+func StopContainer(appName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	killCmd := exec.CommandContext(ctx, "docker", "kill", appName)
+	if _, err := killCmd.CombinedOutput(); err != nil {
+		// container might already be stopped
+	}
+
+	waitCmd := exec.CommandContext(ctx, "docker", "wait", appName)
+	out, err := waitCmd.CombinedOutput()
+	if err != nil {
+		return NewAPIError(
+			ErrContainerStopFailed,
+			fmt.Sprintf("failed to stop container '%s': %s\n%s", appName, err, out),
+			map[string]any{"container": appName},
+		)
+	}
+	return nil
+}
+
+func StartContainer(appName string) error {
+	cmd := exec.Command("docker", "start", appName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return NewAPIError(
+			ErrContainerStartFailed,
+			fmt.Sprintf("failed to start container '%s': %s\n%s", appName, err, out),
+			map[string]any{"container": appName},
+		)
+	}
+	if err := waitContainerRunning(appName); err != nil {
+		return fmt.Errorf("container started but not healthy: %w", err)
+	}
+	return nil
+}
+
+func RestartContainer(appName string) error {
+	if err := StopContainer(appName); err != nil {
+		return err
+	}
+	return StartContainer(appName)
+}
+
+func waitContainerRunning(appName string) error {
+	docker, err := client.New(client.FromEnv)
+	if err != nil {
+		return NewAPIError(ErrContainerTimeout, fmt.Sprintf("docker client: %s", err), nil)
+	}
+	defer docker.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return NewAPIError(
+				ErrContainerTimeout,
+				fmt.Sprintf("timeout waiting for container '%s' to be running", appName),
+				map[string]any{"container": appName},
+			)
+		default:
+			inspect, err := docker.ContainerInspect(context.Background(), appName, client.ContainerInspectOptions{})
+			if err != nil {
+				return NewAPIError(
+					ErrContainerTimeout,
+					fmt.Sprintf("failed to inspect container '%s': %s", appName, err),
+					map[string]any{"container": appName},
+				)
+			}
+
+			switch inspect.Container.State.Status {
+			case "running":
+				if inspect.Container.State.Health == nil {
+					return nil
+				}
+				if inspect.Container.State.Health.Status == "healthy" {
+					return nil
+				}
+			case "exited", "dead":
+				return NewAPIError(
+					ErrContainerStopFailed,
+					fmt.Sprintf("container '%s' exited unexpectedly", appName),
+					map[string]any{"container": appName},
+				)
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+	}
 }
 
 func (v *VolumeDetail) GetVolumeSize() error {

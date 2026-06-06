@@ -6,7 +6,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { LoaderCircle, Trash2, ArrowUpFromLine } from '@lucide/svelte';
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import FileExplorer from '$lib/components/file-explorer.svelte';
+	import { LoaderCircle, Trash2, ArrowUpFromLine, Search } from '@lucide/svelte';
 
 	type VolumeRow = VolumeDetail & { checked: boolean };
 
@@ -24,6 +26,9 @@
 	let bulkSuccess = $state(false);
 
 	let deleting = $state(false);
+
+	let browseOpen = $state(false);
+	let browseTarget = $state<{ container: string; path: string; volumeName: string } | null>(null);
 
 	onMount(async () => {
 		try {
@@ -198,6 +203,7 @@
 						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.source')}</th>
 						<th class="px-4 py-3 text-left font-medium">{$t('volumes.table.destination')}</th>
 						<th class="px-4 py-3 text-center font-medium">{$t('stats.evolution')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('fileExplorer.browse')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -217,6 +223,16 @@
 								   class="text-xs text-muted-foreground hover:text-foreground underline">
 								   {$t('stats.evolution')}
 								</a>
+							</td>
+							<td class="px-4 py-3 text-center">
+								<button
+									onclick={() => { browseTarget = { container: row.ContainerName, path: row.Destination, volumeName: row.Name || row.Destination }; browseOpen = true; }}
+									class="inline-flex items-center justify-center size-7 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+									aria-label={$t('fileExplorer.browse')}
+								>
+								dsqd
+									<Search class="size-3.5" />
+								</button>
 							</td>
 						</tr>
 					{/each}
@@ -292,6 +308,14 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<Sheet.Root bind:open={browseOpen}>
+	<Sheet.Content side="right" class="sm:max-w-2xl p-0">
+		{#if browseTarget}
+			<FileExplorer container={browseTarget.container} initialPath={browseTarget.path} volumeName={browseTarget.volumeName} />
+		{/if}
+	</Sheet.Content>
+</Sheet.Root>
 
 <style>
 	.badge {

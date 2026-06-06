@@ -11,6 +11,51 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func StopApplication(c *gin.Context) {
+	name := c.Param("name")
+	if err := system.StopContainer(name); err != nil {
+		_ = c.Error(err)
+		apiErr, ok := err.(*system.APIError)
+		if ok {
+			c.JSON(apiErr.HTTPStatus(), apiErr)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func StartApplication(c *gin.Context) {
+	name := c.Param("name")
+	if err := system.StartContainer(name); err != nil {
+		_ = c.Error(err)
+		apiErr, ok := err.(*system.APIError)
+		if ok {
+			c.JSON(apiErr.HTTPStatus(), apiErr)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func RestartApplication(c *gin.Context) {
+	name := c.Param("name")
+	if err := system.RestartContainer(name); err != nil {
+		_ = c.Error(err)
+		apiErr, ok := err.(*system.APIError)
+		if ok {
+			c.JSON(apiErr.HTTPStatus(), apiErr)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 func GetApplications(c *gin.Context) {
 	apps := system.GetDockerVolumesByContainers()
 	if apps == nil {

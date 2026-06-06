@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse } from '$lib/types';
 
 const BASE = '/api';
 
@@ -130,6 +130,34 @@ export function getHistoryJob(jobId: string): Promise<HistoryJobDetail> {
 	return fetchJson<HistoryJobDetail>(`/history/${jobId}`);
 }
 
+export function browseVolume(req: BrowseRequest): Promise<BrowseResponse> {
+	return fetchJson<BrowseResponse>('/volumes/browse', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(req),
+	});
+}
+
+export function readVolumeFile(req: ReadFileRequest): Promise<ReadFileResponse> {
+	return fetchJson<ReadFileResponse>('/volumes/read-file', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(req),
+	});
+}
+
 export function rescanHistory(): Promise<{ success: boolean }> {
 	return fetchJson<{ success: boolean }>('/history/rescan', { method: 'POST' });
+}
+
+export function stopApplication(name: string, signal?: AbortSignal): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/applications/${encodeURIComponent(name)}/stop`, { method: 'POST', signal });
+}
+
+export function startApplication(name: string, signal?: AbortSignal): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/applications/${encodeURIComponent(name)}/start`, { method: 'POST', signal });
+}
+
+export function restartApplication(name: string, signal?: AbortSignal): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/applications/${encodeURIComponent(name)}/restart`, { method: 'POST', signal });
 }

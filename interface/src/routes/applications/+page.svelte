@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, getStatsApplication, getStatsVolume, ApiError } from '$lib/api';
+	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, getStatsApplication, getStatsVolume, stopApplication, startApplication, restartApplication, ApiError } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress, StatsApplication, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { LoaderCircle, ArrowUpFromLine, History, Search } from '@lucide/svelte';
+	import { LoaderCircle, ArrowUpFromLine, History, Square, Play, RotateCcw, Search } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
@@ -77,6 +77,38 @@
 	let historyModalOpen = $state(false);
 	let historyAppName = $state<string | null>(null);
 	let historyJobs = $state<MigrationJob[]>([]);
+
+	let actionLoading = $state<Record<string, string | null>>({});
+
+	let confirmAction = $state<{ appName: string; action: 'stop' | 'restart' } | null>(null);
+	let confirmOpen = $state(false);
+
+	async function handleAction(appName: string, action: 'stop' | 'start' | 'restart') {
+		if (action === 'stop' || action === 'restart') {
+			confirmAction = { appName, action };
+			confirmOpen = true;
+			return;
+		}
+		await executeAction(appName, action);
+	}
+
+	async function executeAction(appName: string, action: 'stop' | 'start' | 'restart') {
+		actionLoading[appName] = action;
+		actionLoading = actionLoading;
+		try {
+			if (action === 'stop') await stopApplication(appName);
+			else if (action === 'start') await startApplication(appName);
+			else await restartApplication(appName);
+			apps = await getApplications();
+		} catch {
+			// Error handled below via the loading state remaining
+		} finally {
+			actionLoading[appName] = null;
+			actionLoading = actionLoading;
+			confirmAction = null;
+			confirmOpen = false;
+		}
+	}
 
 	function formatBytes(bytes: number): string {
 		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
@@ -431,6 +463,33 @@
 						{/if}
 					</h2>
 					<div class="flex gap-2">
+						{#if app.Status === 'running'}
+							<Button size="sm" variant="outline" onclick={() => handleAction(app.ContainerName, 'stop')} disabled={busy || actionLoading[app.ContainerName] !== null}>
+								{#if actionLoading[app.ContainerName] === 'stop'}
+									<LoaderCircle class="size-3.5 animate-spin" />
+								{:else}
+									<Square class="size-3.5" />
+								{/if}
+								{$t('applications.stop')}
+							</Button>
+							<Button size="sm" variant="outline" onclick={() => handleAction(app.ContainerName, 'restart')} disabled={busy || actionLoading[app.ContainerName] !== null}>
+								{#if actionLoading[app.ContainerName] === 'restart'}
+									<LoaderCircle class="size-3.5 animate-spin" />
+								{:else}
+									<RotateCcw class="size-3.5" />
+								{/if}
+								{$t('applications.restart')}
+							</Button>
+						{:else}
+							<Button size="sm" variant="outline" onclick={() => handleAction(app.ContainerName, 'start')} disabled={busy || actionLoading[app.ContainerName] !== null}>
+								{#if actionLoading[app.ContainerName] === 'start'}
+									<LoaderCircle class="size-3.5 animate-spin" />
+								{:else}
+									<Play class="size-3.5" />
+								{/if}
+								{$t('applications.start')}
+							</Button>
+						{/if}
 						<Button size="sm" variant="outline" onclick={() => openHistory(app.ContainerName)}>
 							<History class="size-3.5" />
 							{$t('applications.history')}
@@ -580,6 +639,31 @@
 		</div>
 		<Dialog.Footer>
 			<Button onclick={() => (historyModalOpen = false)}>{$t('applications.migration.close')}</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Confirmation Stop / Restart -->
+<Dialog.Root bind:open={confirmOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>
+				{confirmAction?.action === 'stop' ? $t('applications.confirm.stopTitle') : $t('applications.confirm.restartTitle')}
+			</Dialog.Title>
+			<Dialog.Description>
+				{confirmAction?.action === 'stop' ? $t('applications.confirm.stopDesc', { name: confirmAction?.appName?.replace(/^\//, '') ?? '' }) : $t('applications.confirm.restartDesc', { name: confirmAction?.appName?.replace(/^\//, '') ?? '' })}
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="flex gap-2">
+			<Button variant="outline" onclick={() => { confirmAction = null; confirmOpen = false; }}>
+				{$t('applications.confirm.cancel')}
+			</Button>
+			<Button
+				variant={confirmAction?.action === 'stop' ? 'destructive' : 'default'}
+				onclick={() => confirmAction && executeAction(confirmAction.appName, confirmAction.action)}
+			>
+				{confirmAction?.action === 'stop' ? $t('applications.stop') : $t('applications.restart')}
+			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
