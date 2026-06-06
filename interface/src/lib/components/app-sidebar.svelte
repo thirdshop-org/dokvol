@@ -11,7 +11,6 @@
 	const links = [
 		{ href: '/', label: 'nav.home', icon: Home },
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
-		{ href: '/volumes', label: 'nav.volumes', icon: Layers },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
 		{ href: '/stats', label: 'nav.stats', icon: AreaChart },
 	];

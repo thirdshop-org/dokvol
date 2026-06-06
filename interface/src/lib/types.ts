@@ -70,6 +70,21 @@ export interface MigrationJob {
 	volumes: VolumeProgress[];
 }
 
+export interface DeleteVolumeEntry {
+	name: string;
+	source: string;
+	type: string;
+}
+
+export interface DeleteVolumeRequest {
+	volumes: DeleteVolumeEntry[];
+}
+
+export interface DeleteVolumeResponse {
+	success: boolean;
+	errors?: string[];
+}
+
 export interface StartMigrationResponse {
 	job_id: string;
 	status: string;

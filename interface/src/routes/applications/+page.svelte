@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, ApiError } from '$lib/api';
+	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, getStatsApplication, getStatsVolume, ApiError } from '$lib/api';
 	import { t } from '$lib/i18n';
-	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress } from '$lib/types';
+	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress, StatsApplication, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -16,9 +16,20 @@
 	let error = $state<string | null>(null);
 	let search = $state('');
 
+	let appStats = $state<Record<string, StatsApplication | null>>({});
+	let volumeStats = $state<Record<string, StatsVolume | null>>({});
+
 	let filteredApps = $derived(
 		search
-			? apps.filter(a => a.ContainerName.replace(/^\//, '').toLowerCase().includes(search.toLowerCase()))
+			? apps.filter(a => {
+				const q = search.toLowerCase();
+				if (a.ContainerName.replace(/^\//, '').toLowerCase().includes(q)) return true;
+				return a.Volumes.some(v =>
+					v.Type.toLowerCase().includes(q) ||
+					v.Source.toLowerCase().includes(q) ||
+					v.Destination.toLowerCase().includes(q)
+				);
+			})
 			: apps
 	);
 
@@ -40,7 +51,7 @@
 	let historyJobs = $state<MigrationJob[]>([]);
 
 	function formatBytes(bytes: number): string {
-		if (bytes === 0) return '0 B';
+		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
 		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(1024));
 		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
@@ -81,8 +92,41 @@
 		} finally {
 			loading = false;
 		}
+		fetchStats();
 		startActivePoll();
 	});
+
+	async function fetchStats() {
+		const appNames = apps.map(a => a.ContainerName);
+		const appResults = await Promise.allSettled(
+			appNames.map(name =>
+				getStatsApplication(name).then(stats => ({ name, stats: stats.at(-1) ?? null }))
+			)
+		);
+		const appMap: Record<string, StatsApplication | null> = {};
+		for (const r of appResults) {
+			if (r.status === 'fulfilled') appMap[r.value.name] = r.value.stats;
+		}
+		appStats = appMap;
+
+		const volumeNames = new Set<string>();
+		for (const app of apps) {
+			for (const vol of app.Volumes) {
+				const key = vol.Name || vol.Source.split('/').filter(Boolean).pop() || '';
+				if (key) volumeNames.add(key);
+			}
+		}
+		const volResults = await Promise.allSettled(
+			[...volumeNames].map(name =>
+				getStatsVolume(name).then(stats => ({ name, stats: stats.at(-1) ?? null }))
+			)
+		);
+		const volMap: Record<string, StatsVolume | null> = {};
+		for (const r of volResults) {
+			if (r.status === 'fulfilled') volMap[r.value.name] = r.value.stats;
+		}
+		volumeStats = volMap;
+	}
 
 	onDestroy(() => {
 		stopPoll();
@@ -118,6 +162,7 @@
 					if (job.status === 'completed') {
 						resultMessage = $t('applications.migration.success');
 						apps = await getApplications();
+						fetchStats();
 					} else {
 						const failed = job.volumes.find(v => v.step === 'failed');
 						resultMessage = failed?.error || $t('error.default');
@@ -290,12 +335,12 @@
 
 	function statusClass(state: string): string {
 		switch (state) {
-			case 'running': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
-			case 'exited': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
-			case 'paused': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
-			case 'restarting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
-			case 'removing': case 'dead': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
-			default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
+			case 'running': return 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-100 dark:hover:bg-green-900';
+			case 'exited': return 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-900';
+			case 'paused': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-100 dark:hover:bg-yellow-900';
+			case 'restarting': return 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-100 dark:hover:bg-blue-900';
+			case 'removing': case 'dead': return 'bg-purple-100 text-purple-800 hover:bg-purple-100 dark:bg-purple-900 dark:text-purple-100 dark:hover:bg-purple-900';
+			default: return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-800';
 		}
 	}
 
@@ -330,9 +375,15 @@
 								{$t('applications.migration.running')}
 							</span>
 						{/if}
-						<span class="ml-2 text-xs font-normal text-muted-foreground">
-							({$t('applications.volumeCount', { n: app.Volumes.length })})
-						</span>
+						{#if appStats[app.ContainerName]?.total_bytes != null}
+							<span class="ml-2 text-xs font-normal text-muted-foreground">
+								({$t('applications.volumeCount', { n: app.Volumes.length })} — {formatBytes(appStats[app.ContainerName]!.total_bytes)})
+							</span>
+						{:else}
+							<span class="ml-2 text-xs font-normal text-muted-foreground">
+								({$t('applications.volumeCount', { n: app.Volumes.length })})
+							</span>
+						{/if}
 					</h2>
 					<div class="flex gap-2">
 						<Button size="sm" variant="outline" onclick={() => openHistory(app.ContainerName)}>
@@ -349,19 +400,25 @@
 					<thead class="border-b text-muted-foreground">
 						<tr>
 							<th class="px-4 py-2 text-left font-medium">Type</th>
+							<th class="px-4 py-2 text-left font-medium">Size</th>
 							<th class="px-4 py-2 text-left font-medium">Source</th>
 							<th class="px-4 py-2 text-left font-medium">Destination</th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each app.Volumes as vol, i (i)}
+							{@const volKey = vol.Name || vol.Source.split('/').filter(Boolean).pop() || ''}
+							{@const vs = volumeStats[volKey]}
 							<tr class="border-b last:border-0 hover:bg-muted/30">
 								<td class="px-4 py-2">
 									{#if !vol.IsMigratable}
-										<Badge class="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100">{vol.Type} — {$t('applications.inMemory')}</Badge>
+										<Badge class="bg-purple-100 text-purple-800 hover:bg-purple-100 dark:bg-purple-900 dark:text-purple-100 dark:hover:bg-purple-900">{vol.Type} — {$t('applications.inMemory')}</Badge>
 									{:else}
-										<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'}>{vol.Type}</Badge>
+										<Badge class={vol.Type === 'volume' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-100 dark:hover:bg-blue-900' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-100 dark:hover:bg-yellow-900'}>{vol.Type}</Badge>
 									{/if}
+								</td>
+								<td class="px-4 py-2 font-mono text-xs text-muted-foreground">
+									{vs?.total_bytes != null ? formatBytes(vs.total_bytes) : '—'}
 								</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Source}</td>
 								<td class="px-4 py-2 font-mono text-xs">{vol.Destination}</td>

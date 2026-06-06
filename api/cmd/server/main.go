@@ -35,6 +35,7 @@ func main() {
 		api.POST("/volumes/migrate", handler.MigrateVolume)
 		api.GET("/volumes/migrate", handler.GetMigrationJobs)
 		api.GET("/volumes/migrate/:id", handler.GetMigrationJob)
+		api.DELETE("/volumes", handler.DeleteVolumes)
 
 		api.GET("/preferences", handler.GetPreferences)
 		api.PUT("/preferences", handler.UpdatePreference)

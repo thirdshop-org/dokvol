@@ -157,6 +157,24 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 
 }
 
+func DeleteVolumes(vols []VolumeDetail) []error {
+	apiClient, err := client.New(client.FromEnv)
+	if err != nil {
+		return []error{fmt.Errorf("docker client: %w", err)}
+	}
+	defer apiClient.Close()
+
+	var errs []error
+	for _, v := range vols {
+		if v.Type == "volume" && v.Name != "" {
+			if _, err := apiClient.VolumeRemove(context.Background(), v.Name, client.VolumeRemoveOptions{Force: true}); err != nil {
+				errs = append(errs, fmt.Errorf("volume %q: %w", v.Name, err))
+			}
+		}
+	}
+	return errs
+}
+
 func (v *VolumeDetail) GetVolumeSize() error {
 	usage, err := disk.Usage(v.Source)
 	if err != nil {

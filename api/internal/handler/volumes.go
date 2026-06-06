@@ -257,6 +257,58 @@ func GetMigrationJobs(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+type deleteVolumeEntry struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+	Type   string `json:"type"`
+}
+
+type deleteVolumeRequest struct {
+	Volumes []deleteVolumeEntry `json:"volumes"`
+}
+
+type deleteVolumeResponse struct {
+	Success bool     `json:"success"`
+	Errors  []string `json:"errors,omitempty"`
+}
+
+func DeleteVolumes(c *gin.Context) {
+	var req deleteVolumeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"invalid request body",
+			nil,
+		))
+		return
+	}
+
+	if len(req.Volumes) == 0 {
+		c.JSON(http.StatusBadRequest, system.NewAPIError(
+			"INTERNAL_ERROR",
+			"'volumes' is required",
+			nil,
+		))
+		return
+	}
+
+	var vols []system.VolumeDetail
+	for _, v := range req.Volumes {
+		vols = append(vols, system.VolumeDetail{
+			Name: v.Name,
+			Source: v.Source,
+			Type:   v.Type,
+		})
+	}
+
+	errs := system.DeleteVolumes(vols)
+	resp := deleteVolumeResponse{Success: len(errs) == 0}
+	for _, e := range errs {
+		resp.Errors = append(resp.Errors, e.Error())
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 func GetMigrationJob(c *gin.Context) {
 	id := c.Param("id")
 	job, err := MigrationManager.GetJob(c.Request.Context(), id)

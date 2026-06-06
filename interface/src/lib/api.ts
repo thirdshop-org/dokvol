@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse } from '$lib/types';
 
 const BASE = '/api';
 
@@ -60,6 +60,14 @@ export function migrateVolume(req: MigrateVolumeRequest): Promise<StartMigration
 
 export function getActiveMigrations(): Promise<MigrationJob[]> {
 	return fetchJson<MigrationJob[]>('/volumes/migrate');
+}
+
+export function deleteVolumes(req: DeleteVolumeRequest): Promise<DeleteVolumeResponse> {
+	return fetchJson<DeleteVolumeResponse>('/volumes', {
+		method: 'DELETE',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(req),
+	});
 }
 
 export function getMigrationStatus(jobId: string): Promise<MigrationJob> {
