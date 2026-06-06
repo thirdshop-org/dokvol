@@ -2,6 +2,7 @@
 api/dokvol-api
 api/opencode-api
 api/dokvol
+api/server
 *.exe
 *.exe~
 *.dll
