@@ -14,11 +14,11 @@ import (
 )
 
 type StatsCollector struct {
-	db        *db.Queries
-	docker    *client.Client
-	mu        sync.Mutex
-	ticker    *time.Ticker
-	stopCh    chan struct{}
+	db     *db.Queries
+	docker *client.Client
+	mu     sync.Mutex
+	ticker *time.Ticker
+	stopCh chan struct{}
 }
 
 func NewStatsCollector(queries *db.Queries) *StatsCollector {
