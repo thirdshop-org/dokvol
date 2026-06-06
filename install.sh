@@ -2,7 +2,8 @@
 set -e
 
 # Configuration
-DOKVOL_IMAGE="${DOKVOL_IMAGE:-ghcr.io/thirdshop-org/dokvol}"
+DOKVOL_IMAGE="${DOKVOL_IMAGE:-registry.gitlab.thirdshop.fr/thirdshop/dokvol}"
+FALLBACK_IMAGE="${DOKVOL_FALLBACK_IMAGE:-ghcr.io/thirdshop-org/dokvol}"
 VERSION="${DOKVOL_VERSION:-latest}"
 PORT="${DOKVOL_PORT:-8080}"
 
@@ -37,7 +38,11 @@ echo ""
 echo "🚀 Installation de DokVol ${VERSION}..."
 
 echo "📥 Pulling ${DOKVOL_IMAGE}:${VERSION} ..."
-docker pull "${DOKVOL_IMAGE}:${VERSION}"
+if ! docker pull "${DOKVOL_IMAGE}:${VERSION}"; then
+    echo "⚠️ Échec, tentative avec le registre secondaire : ${FALLBACK_IMAGE}"
+    DOKVOL_IMAGE="$FALLBACK_IMAGE"
+    docker pull "${DOKVOL_IMAGE}:${VERSION}"
+fi
 
 # ── Nettoyage ancien container ─────────────────────────────────────
 
@@ -62,4 +67,5 @@ docker run -d \
 
 echo ""
 echo "✅ DokVol ${VERSION} est installé et s'exécute sur le port ${PORT}"
+echo "   Image : ${DOKVOL_IMAGE}:${VERSION}"
 echo "👉 Accédez à l'interface : http://$(curl -s ifconfig.me):${PORT}"

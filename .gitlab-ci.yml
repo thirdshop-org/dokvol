@@ -1,0 +1,86 @@
+image: docker:24.0.5
+
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: /certs
+  GITLAB_IMAGE: $CI_REGISTRY_IMAGE
+  GHCR_IMAGE: ghcr.io/thirdshop-org/dokvol
+
+services:
+  - name: docker:24.0.5-dind
+    variables:
+      DOCKER_TLS_CERTDIR: /certs
+
+stages:
+  - test
+  - build
+  - publish
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
+test:
+  stage: test
+  script:
+    - docker compose -f docker-compose.test.yml build
+    - docker compose -f docker-compose.test.yml run sut
+  variables:
+    DOKVOL_DB_PATH: /tmp/dokvol-test.db
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+
+build:
+  stage: build
+  script:
+    - |
+      docker build \
+        --cache-from "$GITLAB_IMAGE:latest" \
+        -t "$GITLAB_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - docker push "$GITLAB_IMAGE:$CI_COMMIT_SHORT_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+
+publish:
+  stage: publish
+  script:
+    - docker login -u "$GHCR_USERNAME" -p "$GHCR_PASSWORD" ghcr.io
+    - docker pull "$GITLAB_IMAGE:$CI_COMMIT_SHORT_SHA"
+
+    # Construction de la liste des tags
+    - TAGS="$CI_COMMIT_SHORT_SHA"
+
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ] || [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$GITLAB_IMAGE:$CI_COMMIT_SHORT_SHA" "$GITLAB_IMAGE:latest"
+        TAGS="$TAGS latest"
+      fi
+
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION="${CI_COMMIT_TAG#v}"
+        MINOR="${VERSION%.*}"
+        MAJOR="${VERSION%%.*}"
+        for V in "$VERSION" "$MINOR" "$MAJOR"; do
+          docker tag "$GITLAB_IMAGE:$CI_COMMIT_SHORT_SHA" "$GITLAB_IMAGE:$V"
+          TAGS="$TAGS $V"
+        done
+      fi
+
+    # Push GitLab Registry
+    - |
+      for tag in $TAGS; do
+        docker push "$GITLAB_IMAGE:$tag"
+        docker tag "$GITLAB_IMAGE:$tag" "$GHCR_IMAGE:$tag"
+        docker push "$GHCR_IMAGE:$tag"
+      done
+
+  needs:
+    - job: build
+      artifacts: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
