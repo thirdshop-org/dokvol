@@ -178,7 +178,7 @@ func InitTestDB(t *testing.T) *db.Queries {
 	goose.SetDialect("sqlite3")
 
 	_, filename, _, _ := runtime.Caller(0)
-	migrationsDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "migrations")
+	migrationsDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "migrations")
 	if err := goose.Up(conn, migrationsDir); err != nil {
 		t.Fatalf("goose up: %v", err)
 	}
