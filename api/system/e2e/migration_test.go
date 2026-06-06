@@ -328,9 +328,15 @@ func TestE2E_ErrorHandling(t *testing.T) {
 
 		db := testutil.InitTestDB(t)
 		mm := system.NewMigrationManager(db)
-		volOpts := []system.ApplicationVolumeOptions{
-			{VolumeDetail: app.DockerVolumes[0], DestinationDrive: *drive1},
-			{VolumeDetail: app.DockerVolumes[1], DestinationDrive: *drive2},
+		var volOpts []system.ApplicationVolumeOptions
+		for _, v := range app.DockerVolumes {
+			opts := system.ApplicationVolumeOptions{VolumeDetail: v}
+			if v.Name == volNameA {
+				opts.DestinationDrive = *drive1
+			} else {
+				opts.DestinationDrive = *drive2
+			}
+			volOpts = append(volOpts, opts)
 		}
 
 		jobID, err := mm.StartJob(ctx, app.Name, *app, volOpts)
@@ -341,7 +347,14 @@ func TestE2E_ErrorHandling(t *testing.T) {
 		if job.Status != system.JobFailed {
 			t.Fatalf("expected job failed, got %s", job.Status)
 		}
-		if len(job.Volumes) == 0 || !strings.Contains(job.Volumes[0].Error, "not enough space") {
+		var failedVol *system.VolumeRow
+		for i := range job.Volumes {
+			if strings.Contains(job.Volumes[i].Error, "not enough space") {
+				failedVol = &job.Volumes[i]
+				break
+			}
+		}
+		if failedVol == nil {
 			t.Fatalf("expected disk space error, got: %+v", job.Volumes)
 		}
 
@@ -479,7 +492,7 @@ func TestE2E_PartialFailure(t *testing.T) {
 	testutil.WriteData(t, cli, ctrName, "/data1/vol1.bin", 5)
 	testutil.WriteData(t, cli, ctrName, "/data2/vol2.bin", 300)
 
-	driveMount := testutil.CreateLoopDrive(t, 300)
+	driveMount := testutil.CreateLoopDrive(t, 400)
 	drive := testutil.WaitForDrive(t, driveMount)
 	app := testutil.WaitForApp(t, ctrName)
 

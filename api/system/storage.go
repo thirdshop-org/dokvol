@@ -59,6 +59,27 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	// Dossier de destination dans .dokvol du drive cible
 	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, vol.VolumeDetail.Name)
 
+	// Vérifier l'espace disponible par volume avant de migrer
+	size, err := dirSize(sourcePath)
+	if err != nil {
+		return fmt.Errorf("source size: %w", err)
+	}
+	available, err := availableDiskSpace(destDrive.Mountpoint)
+	if err != nil {
+		return fmt.Errorf("disk space: %w", err)
+	}
+	if size > available {
+		return NewAPIError(
+			ErrMigrationDiskSpace,
+			fmt.Sprintf("not enough space on '%s'", destDrive.Mountpoint),
+			map[string]any{
+				"drive":           destDrive.Mountpoint,
+				"needed_bytes":    size,
+				"available_bytes": available,
+			},
+		)
+	}
+
 	// 1. STOP — Arrêter le conteneur
 	reportProgress(opts, vol.VolumeDetail.Name, StepStopping, 0, 0)
 	if err := s.stopContainer(app.Name); err != nil {
@@ -340,11 +361,6 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 				},
 			)
 		}
-	}
-
-	// 5. Vérifier l'espace disponible sur chaque drive de destination
-	if err := s.checkDiskSpace(volumes); err != nil {
-		return err
 	}
 
 	return nil
