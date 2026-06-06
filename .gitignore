@@ -1,6 +1,7 @@
 # Binaries
 api/dokvol-api
 api/opencode-api
+api/dokvol
 *.exe
 *.exe~
 *.dll
