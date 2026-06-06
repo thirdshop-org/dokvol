@@ -10,6 +10,7 @@ api/opencode-api
 # Go
 api/vendor/
 *.test
+!Dockerfile.test
 *.out
 api/coverage.out
 

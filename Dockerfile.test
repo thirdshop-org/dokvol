@@ -1,0 +1,25 @@
+FROM golang:1.26-alpine
+
+RUN apk add --no-cache \
+    rsync \
+    e2fsprogs \
+    util-linux \
+    ca-certificates \
+    tzdata \
+    gcc \
+    musl-dev \
+    kmod \
+    file \
+    docker
+
+WORKDIR /src/api
+COPY api/go.mod api/go.sum ./
+RUN go mod download
+
+COPY api/ .
+
+COPY docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
+RUN chmod +x /usr/local/bin/test-entrypoint.sh
+
+ENTRYPOINT ["test-entrypoint.sh"]
+CMD ["go", "test", "./system/...", "-v", "-run", "TestE2E", "-count=1", "-timeout=180s"]
