@@ -44,7 +44,7 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 			continue
 		}
 		if err := s.migrateVolume(*app, vol, opts); err != nil {
-			return fmt.Errorf("migrate volume '%s': %w", vol.VolumeDetail.Name, err)
+			return fmt.Errorf("migrate volume '%s': %w", volumeSubDir(vol.VolumeDetail), err)
 		}
 	}
 
@@ -53,11 +53,12 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 
 func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, opts MoveStorageOptions) error {
 
+	volName := volumeSubDir(vol.VolumeDetail)
 	sourcePath := vol.VolumeDetail.Source
 	destDrive := vol.DestinationDrive
 
 	// Dossier de destination dans .dokvol du drive cible
-	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, volumeSubDir(vol.VolumeDetail))
+	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, volName)
 
 	// Vérifier l'espace disponible par volume avant de migrer
 	size, err := dirSize(sourcePath)
@@ -81,14 +82,14 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	}
 
 	// 1. STOP — Arrêter le conteneur
-	reportProgress(opts, vol.VolumeDetail.Name, StepStopping, 0, 0)
+	reportProgress(opts, volName, StepStopping, 0, 0)
 	if err := s.stopContainer(app.Name); err != nil {
 		return fmt.Errorf("stop failed: %w", err)
 	}
 
 	// 2. SYNC — Copier avec rsync
 	totalBytes, _ := dirSize(sourcePath)
-	reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, 0, totalBytes)
+	reportProgress(opts, volName, StepSyncing, 0, totalBytes)
 
 	// Goroutine de progression pendant rsync
 	stopProgress := make(chan struct{})
@@ -104,7 +105,7 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 			case <-ticker.C:
 				transferred, err := dirSize(destPath)
 				if err == nil {
-					reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, transferred, totalBytes)
+					reportProgress(opts, volName, StepSyncing, transferred, totalBytes)
 				}
 			}
 		}
@@ -123,29 +124,29 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	if totalAfterSync > totalBytes {
 		totalBytes = totalAfterSync
 	}
-	reportProgress(opts, vol.VolumeDetail.Name, StepSyncing, totalBytes, totalBytes)
+	reportProgress(opts, volName, StepSyncing, totalBytes, totalBytes)
 
 	// 3. VERIFY — Checksum
-	reportProgress(opts, vol.VolumeDetail.Name, StepVerifying, totalBytes, totalBytes)
+	reportProgress(opts, volName, StepVerifying, totalBytes, totalBytes)
 	if err := s.verifyChecksum(sourcePath, destPath); err != nil {
 		s.startContainer(app.Name) // rollback
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
 	// 4. RELINK — Remplacer sourcePath par un symlink
-	reportProgress(opts, vol.VolumeDetail.Name, StepRelinking, totalBytes, totalBytes)
+	reportProgress(opts, volName, StepRelinking, totalBytes, totalBytes)
 	if err := s.relink(sourcePath, destPath); err != nil {
 		s.startContainer(app.Name) // rollback
 		return fmt.Errorf("relink failed: %w", err)
 	}
 
 	// 5. START — Relancer
-	reportProgress(opts, vol.VolumeDetail.Name, StepStarting, totalBytes, totalBytes)
+	reportProgress(opts, volName, StepStarting, totalBytes, totalBytes)
 	if err := s.startContainer(app.Name); err != nil {
 		return fmt.Errorf("start failed: %w", err)
 	}
 
-	reportProgress(opts, vol.VolumeDetail.Name, StepCompleted, totalBytes, totalBytes)
+	reportProgress(opts, volName, StepCompleted, totalBytes, totalBytes)
 	return nil
 }
 

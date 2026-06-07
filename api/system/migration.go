@@ -99,11 +99,12 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 	}
 
 	for i, vol := range volumes {
-		destPath := filepath.Join(vol.DestinationDrive.Mountpoint, DOKVOL_FOLDER, appName, volumeSubDir(vol.VolumeDetail))
+		volName := volumeSubDir(vol.VolumeDetail)
+		destPath := filepath.Join(vol.DestinationDrive.Mountpoint, DOKVOL_FOLDER, appName, volName)
 
 		p, err := m.Queries.CreateVolumeProgress(ctx, db.CreateVolumeProgressParams{
 			JobID:      jobID,
-			VolumeName: vol.VolumeDetail.Name,
+			VolumeName: volName,
 			SourcePath: vol.VolumeDetail.Source,
 			DestPath:   destPath,
 			DestDrive:  vol.DestinationDrive.Mountpoint,
@@ -115,7 +116,7 @@ func (m *MigrationManager) StartJob(ctx context.Context, appName string, applica
 
 		job.Volumes[i] = VolumeRow{
 			ID:          p.ID,
-			VolumeName:  vol.VolumeDetail.Name,
+			VolumeName:  volName,
 			Step:        StepPending,
 			SourcePath:  vol.VolumeDetail.Source,
 			SourceDrive: getDriveForSourcePath(vol.VolumeDetail.Source, GetDrives()),
