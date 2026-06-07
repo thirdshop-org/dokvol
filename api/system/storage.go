@@ -57,7 +57,7 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	destDrive := vol.DestinationDrive
 
 	// Dossier de destination dans .dokvol du drive cible
-	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, vol.VolumeDetail.Name)
+	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, volumeSubDir(vol.VolumeDetail))
 
 	// Vérifier l'espace disponible par volume avant de migrer
 	size, err := dirSize(sourcePath)

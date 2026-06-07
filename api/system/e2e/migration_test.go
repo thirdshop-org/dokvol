@@ -714,3 +714,107 @@ func TestE2E_MigrationHistory(t *testing.T) {
 	}
 	t.Logf("rescan idempotent: %d entries unchanged", countAfterRescan)
 }
+
+func TestE2E_BindMounts(t *testing.T) {
+	ctx := context.Background()
+	cli := testutil.DockerClient(t)
+	testutil.PullImage(t, testutil.AlpineImage)
+
+	suffix := uuid.New().String()[:8]
+	ctrName := "/e2e-bind-ctr-" + suffix
+
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	dir3 := t.TempDir()
+
+	configData := []byte("config content")
+	downloadData := []byte("download content")
+	movieData := []byte("movie content")
+	if err := os.WriteFile(filepath.Join(dir1, "config.xml"), configData, 0644); err != nil {
+		t.Fatalf("write config.xml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir2, "download.mkv"), downloadData, 0644); err != nil {
+		t.Fatalf("write download.mkv: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir3, "movie.mp4"), movieData, 0644); err != nil {
+		t.Fatalf("write movie.mp4: %v", err)
+	}
+
+	testutil.CreateContainer(t, cli, ctrName, testutil.AlpineImage,
+		[]mount.Mount{
+			{Type: mount.TypeBind, Source: dir1, Target: "/config"},
+			{Type: mount.TypeBind, Source: dir2, Target: "/downloads"},
+			{Type: mount.TypeBind, Source: dir3, Target: "/movies"},
+		},
+		[]string{"sleep", "9999"},
+	)
+	testutil.StartContainer(t, cli, ctrName)
+	testutil.WaitContainerRunning(t, cli, ctrName)
+
+	app := testutil.WaitForApp(t, ctrName)
+	if len(app.DockerVolumes) != 3 {
+		t.Fatalf("expected 3 volumes, got %d", len(app.DockerVolumes))
+	}
+
+	for i, v := range app.DockerVolumes {
+		if v.Name != "" {
+			t.Fatalf("bind mount %d should have empty Name, got %q", i, v.Name)
+		}
+		if v.Type != "bind" {
+			t.Fatalf("bind mount %d expected type 'bind', got %q", i, v.Type)
+		}
+	}
+
+	driveMount := testutil.CreateLoopDrive(t, 200)
+	drive := testutil.WaitForDrive(t, driveMount)
+
+	db := testutil.InitTestDB(t)
+	mm := system.NewMigrationManager(db)
+	volOpts := testutil.BuildVolumeOpts(app, drive)
+
+	jobID, err := mm.StartJob(ctx, app.Name, *app, volOpts)
+	if err != nil {
+		t.Fatalf("StartJob: %v", err)
+	}
+	t.Logf("bind mounts migration job %s started", jobID)
+
+	job := testutil.PollJob(t, mm, jobID, 120*time.Second)
+	if job.Status != system.JobCompleted {
+		t.Fatalf("expected completed, got %s", job.Status)
+	}
+	if len(job.Volumes) != 3 {
+		t.Fatalf("expected 3 volumes, got %d", len(job.Volumes))
+	}
+
+	destPaths := make(map[string]bool)
+	for i := range job.Volumes {
+		if destPaths[job.Volumes[i].DestPath] {
+			t.Fatalf("volume %d has duplicate destPath %q: all bind mounts must get unique destinations", i, job.Volumes[i].DestPath)
+		}
+		destPaths[job.Volumes[i].DestPath] = true
+		if job.Volumes[i].Transferred == 0 {
+			t.Fatalf("volume %d Transferred == 0", i)
+		}
+		if job.Volumes[i].Step != system.StepCompleted {
+			t.Fatalf("volume %d step %s, expected completed", i, job.Volumes[i].Step)
+		}
+	}
+
+	for _, v := range app.DockerVolumes {
+		target := testutil.SymlinkTarget(t, v.Source)
+		if target == "" {
+			t.Fatalf("volume source %s is not a symlink", v.Source)
+		}
+		if !strings.HasPrefix(target, driveMount) {
+			t.Fatalf("symlink %s -> %s not on drive %s", v.Source, target, driveMount)
+		}
+	}
+
+	info, err := cli.ContainerInspect(ctx, ctrName, client.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	if info.Container.State.Status != "running" {
+		t.Fatalf("container status %s, expected running", info.Container.State.Status)
+	}
+}

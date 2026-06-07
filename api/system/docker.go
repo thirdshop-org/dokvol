@@ -25,6 +25,17 @@ type VolumeDetail struct {
 	MigratedDestPath    string     `json:"MigratedDestPath,omitempty"`
 }
 
+// volumeSubDir returns the subdirectory name for a volume under .dokvol/<app>/.
+// Named Docker volumes use their name.
+// Bind mounts have no Docker volume name, so the container destination is used instead.
+// For example: /config → config, /movies → movies, /downloads → downloads
+func volumeSubDir(v VolumeDetail) string {
+	if v.Name != "" {
+		return v.Name
+	}
+	return strings.TrimLeft(v.Destination, "/")
+}
+
 func (s *System) GetDockerVolumes() []VolumeDetail {
 	fmt.Println("🔎 Scan des volumes Docker en cours...")
 
