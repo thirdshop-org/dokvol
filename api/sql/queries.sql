@@ -198,6 +198,43 @@ DELETE FROM stats_drive WHERE captured_at < ?;
 -- name: ListDistinctAppNames :many
 SELECT DISTINCT app_name FROM migration_log ORDER BY app_name;
 
+-- name: CreateUser :one
+INSERT INTO users (email, username, password_hash, role, password_change_required)
+VALUES (?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: GetUserByID :one
+SELECT * FROM users WHERE id = ?;
+
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = ?;
+
+-- name: GetUserByUsername :one
+SELECT * FROM users WHERE username = ?;
+
+-- name: ListUsers :many
+SELECT * FROM users ORDER BY username;
+
+-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = ?, password_change_required = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES (?, ?, ?)
+RETURNING *;
+
+-- name: GetRefreshToken :one
+SELECT * FROM refresh_tokens WHERE token = ?;
+
+-- name: DeleteRefreshToken :exec
+DELETE FROM refresh_tokens WHERE token = ?;
+
+-- name: DeleteUserRefreshTokens :exec
+DELETE FROM refresh_tokens WHERE user_id = ?;
+
+-- name: DeleteExpiredRefreshTokens :exec
+DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP;
+
 -- name: GetMigrationStats :one
 SELECT
   CAST(COUNT(*) AS INTEGER) as total_count,

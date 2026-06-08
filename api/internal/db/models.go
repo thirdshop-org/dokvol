@@ -61,6 +61,14 @@ type MigrationVolumeProgress struct {
 	UpdatedAt        sql.NullTime   `json:"updated_at"`
 }
 
+type RefreshToken struct {
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	CreatedAt sql.NullTime `json:"created_at"`
+}
+
 type StatsBatch struct {
 	ID         int64     `json:"id"`
 	CapturedAt time.Time `json:"captured_at"`
@@ -87,6 +95,17 @@ type StatsVolume struct {
 	TotalBytes    int64     `json:"total_bytes"`
 	DurationMs    int64     `json:"duration_ms"`
 	CapturedAt    time.Time `json:"captured_at"`
+}
+
+type User struct {
+	ID                     int64          `json:"id"`
+	Email                  sql.NullString `json:"email"`
+	Username               string         `json:"username"`
+	PasswordHash           string         `json:"password_hash"`
+	Role                   string         `json:"role"`
+	PasswordChangeRequired int64          `json:"password_change_required"`
+	CreatedAt              sql.NullTime   `json:"created_at"`
+	UpdatedAt              sql.NullTime   `json:"updated_at"`
 }
 
 type UserPreference struct {

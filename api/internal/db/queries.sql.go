@@ -144,6 +144,31 @@ func (q *Queries) CreateMigrationLog(ctx context.Context, arg CreateMigrationLog
 	return i, err
 }
 
+const createRefreshToken = `-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES (?, ?, ?)
+RETURNING id, user_id, token, expires_at, created_at
+`
+
+type CreateRefreshTokenParams struct {
+	UserID    int64     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, createRefreshToken, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createStatsBatch = `-- name: CreateStatsBatch :one
 INSERT INTO stats_batch DEFAULT VALUES RETURNING id, captured_at
 `
@@ -207,6 +232,42 @@ func (q *Queries) CreateStatsVolume(ctx context.Context, arg CreateStatsVolumePa
 		arg.DurationMs,
 	)
 	return err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (email, username, password_hash, role, password_change_required)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, email, username, password_hash, role, password_change_required, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	Email                  sql.NullString `json:"email"`
+	Username               string         `json:"username"`
+	PasswordHash           string         `json:"password_hash"`
+	Role                   string         `json:"role"`
+	PasswordChangeRequired int64          `json:"password_change_required"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Email,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Role,
+		arg.PasswordChangeRequired,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.PasswordChangeRequired,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createVolume = `-- name: CreateVolume :one
@@ -315,6 +376,15 @@ func (q *Queries) DeleteDrive(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :exec
+DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP
+`
+
+func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredRefreshTokens)
+	return err
+}
+
 const deleteMigrationLog = `-- name: DeleteMigrationLog :exec
 DELETE FROM migration_log WHERE id = ?
 `
@@ -339,6 +409,24 @@ DELETE FROM stats_volume WHERE captured_at < ?
 
 func (q *Queries) DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error {
 	_, err := q.db.ExecContext(ctx, deleteOldStatsVolume, capturedAt)
+	return err
+}
+
+const deleteRefreshToken = `-- name: DeleteRefreshToken :exec
+DELETE FROM refresh_tokens WHERE token = ?
+`
+
+func (q *Queries) DeleteRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, deleteRefreshToken, token)
+	return err
+}
+
+const deleteUserRefreshTokens = `-- name: DeleteUserRefreshTokens :exec
+DELETE FROM refresh_tokens WHERE user_id = ?
+`
+
+func (q *Queries) DeleteUserRefreshTokens(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteUserRefreshTokens, userID)
 	return err
 }
 
@@ -482,6 +570,83 @@ func (q *Queries) GetPreference(ctx context.Context, key string) (UserPreference
 	row := q.db.QueryRowContext(ctx, getPreference, key)
 	var i UserPreference
 	err := row.Scan(&i.Key, &i.Value)
+	return i, err
+}
+
+const getRefreshToken = `-- name: GetRefreshToken :one
+SELECT id, user_id, token, expires_at, created_at FROM refresh_tokens WHERE token = ?
+`
+
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, username, password_hash, role, password_change_required, created_at, updated_at FROM users WHERE email = ?
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.PasswordChangeRequired,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, username, password_hash, role, password_change_required, created_at, updated_at FROM users WHERE id = ?
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.PasswordChangeRequired,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, email, username, password_hash, role, password_change_required, created_at, updated_at FROM users WHERE username = ?
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.PasswordChangeRequired,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -1068,6 +1233,42 @@ func (q *Queries) ListStatsVolumeByName(ctx context.Context, arg ListStatsVolume
 	return items, nil
 }
 
+const listUsers = `-- name: ListUsers :many
+SELECT id, email, username, password_hash, role, password_change_required, created_at, updated_at FROM users ORDER BY username
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Username,
+			&i.PasswordHash,
+			&i.Role,
+			&i.PasswordChangeRequired,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVolumeDrives = `-- name: ListVolumeDrives :many
 SELECT
     vd.id,
@@ -1229,6 +1430,20 @@ type UpdateMigrationJobStatusParams struct {
 
 func (q *Queries) UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateMigrationJobStatus, arg.Status, arg.ID)
+	return err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = ?, password_change_required = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string `json:"password_hash"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
 	return err
 }
 

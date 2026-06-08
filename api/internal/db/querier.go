@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -14,16 +15,21 @@ type Querier interface {
 	CreateDrive(ctx context.Context, arg CreateDriveParams) (Drive, error)
 	CreateMigrationJob(ctx context.Context, arg CreateMigrationJobParams) (MigrationJob, error)
 	CreateMigrationLog(ctx context.Context, arg CreateMigrationLogParams) (MigrationLog, error)
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateStatsBatch(ctx context.Context) (StatsBatch, error)
 	CreateStatsDrive(ctx context.Context, arg CreateStatsDriveParams) error
 	CreateStatsVolume(ctx context.Context, arg CreateStatsVolumeParams) error
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateVolume(ctx context.Context, arg CreateVolumeParams) (Volume, error)
 	CreateVolumeDrive(ctx context.Context, arg CreateVolumeDriveParams) (VolumeDrive, error)
 	CreateVolumeProgress(ctx context.Context, arg CreateVolumeProgressParams) (MigrationVolumeProgress, error)
 	DeleteDrive(ctx context.Context, id int64) error
+	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteMigrationLog(ctx context.Context, id int64) error
 	DeleteOldStatsDrive(ctx context.Context, capturedAt time.Time) error
 	DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error
+	DeleteRefreshToken(ctx context.Context, token string) error
+	DeleteUserRefreshTokens(ctx context.Context, userID int64) error
 	DeleteVolume(ctx context.Context, id int64) error
 	DeleteVolumeDrive(ctx context.Context, id int64) error
 	GetDrive(ctx context.Context, id int64) (Drive, error)
@@ -31,6 +37,10 @@ type Querier interface {
 	GetMigrationLogByJobID(ctx context.Context, jobID string) ([]MigrationLog, error)
 	GetMigrationStats(ctx context.Context) (GetMigrationStatsRow, error)
 	GetPreference(ctx context.Context, key string) (UserPreference, error)
+	GetRefreshToken(ctx context.Context, token string) (RefreshToken, error)
+	GetUserByEmail(ctx context.Context, email sql.NullString) (User, error)
+	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)
 	ListDistinctAppNames(ctx context.Context) ([]string, error)
@@ -45,10 +55,12 @@ type Querier interface {
 	ListStatsApplication(ctx context.Context, arg ListStatsApplicationParams) ([]ListStatsApplicationRow, error)
 	ListStatsDriveByMountpoint(ctx context.Context, arg ListStatsDriveByMountpointParams) ([]StatsDrive, error)
 	ListStatsVolumeByName(ctx context.Context, arg ListStatsVolumeByNameParams) ([]StatsVolume, error)
+	ListUsers(ctx context.Context) ([]User, error)
 	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
 	ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error)
 	ListVolumes(ctx context.Context) ([]Volume, error)
 	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error
 	UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error
 	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error
