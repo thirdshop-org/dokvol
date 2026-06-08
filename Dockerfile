@@ -24,6 +24,7 @@ FROM alpine:3.21
 
 RUN apk add --no-cache \
     rsync \
+    rclone \
     ca-certificates \
     tzdata \
     docker-cli

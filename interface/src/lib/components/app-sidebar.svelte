@@ -1,18 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { t } from '$lib/i18n';
-	import { getVersion } from '$lib/api';
+	import { getVersion, logout as apiLogout } from '$lib/api';
+	import { auth } from '$lib/stores/auth.svelte';
 	import type { VersionResponse } from '$lib/types';
-	import Box from '@lucide/svelte/icons/box';
-	import HardDrive from '@lucide/svelte/icons/hard-drive';
-	import Home from '@lucide/svelte/icons/house';
-	import Settings from '@lucide/svelte/icons/settings';
-	import AreaChart from '@lucide/svelte/icons/area-chart';
-	import HistoryIcon from '@lucide/svelte/icons/clock';
+import Box from '@lucide/svelte/icons/box';
+import HardDrive from '@lucide/svelte/icons/hard-drive';
+import Home from '@lucide/svelte/icons/house';
+import Settings from '@lucide/svelte/icons/settings';
+import AreaChart from '@lucide/svelte/icons/area-chart';
+import HistoryIcon from '@lucide/svelte/icons/clock';
+import LogOut from '@lucide/svelte/icons/log-out';
+import UserIcon from '@lucide/svelte/icons/user';
+import Database from '@lucide/svelte/icons/database';
+	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 
 	const VERSION_URL = 'https://raw.githubusercontent.com/thirdshop-org/dokvol/main/VERSION';
 
@@ -20,6 +25,7 @@
 		{ href: '/', label: 'nav.home', icon: Home },
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
+		{ href: '/backup', label: 'nav.backup', icon: Database },
 		{ href: '/history', label: 'nav.history', icon: HistoryIcon },
 		{ href: '/stats', label: 'nav.stats', icon: AreaChart },
 		{ href: '/preferences', label: 'nav.preferences', icon: Settings },
@@ -28,6 +34,12 @@
 	let version = $state<VersionResponse | null>(null);
 	let latestTag = $state<string | null>(null);
 	let updateCheckFailed = $state(false);
+
+	let currentUser = $state(auth.user);
+	let isLoggedIn = $state(false);
+
+	auth.user.subscribe(u => currentUser = u);
+	auth.isLoggedIn.subscribe(l => isLoggedIn = l);
 
 	function semverGt(a: string, b: string): boolean {
 		const pa = a.replace(/^v/, '').split('.').map(Number);
@@ -43,6 +55,19 @@
 			? semverGt(latestTag, version.version)
 			: false
 	);
+
+	async function handleLogout() {
+		const rt = auth.getRefreshToken();
+		if (rt) {
+			try {
+				await apiLogout({ refresh_token: rt });
+			} catch {
+				// silencieux
+			}
+		}
+		auth.logout();
+		goto('/login');
+	}
 
 	onMount(async () => {
 		try {
@@ -101,6 +126,17 @@
 		</Sidebar.Group>
 	</Sidebar.Content>
 	<Sidebar.Footer>
+		{#if isLoggedIn && currentUser}
+			<div class="flex items-center justify-between px-2 py-1 border-b border-border mb-1">
+				<div class="flex items-center gap-2 min-w-0">
+					<UserIcon class="size-4 shrink-0 text-muted-foreground" />
+					<span class="text-sm truncate">{currentUser.username}</span>
+				</div>
+				<button onclick={handleLogout} class="text-muted-foreground hover:text-foreground transition-colors" title={$t('auth.logout')}>
+					<LogOut class="size-4" />
+				</button>
+			</div>
+		{/if}
 		{#if version}
 			<div class="flex items-center justify-between px-2 py-1">
 				<span class="text-xs text-muted-foreground">

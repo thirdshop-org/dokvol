@@ -1,4 +1,5 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse, LoginRequest, RegisterRequest, AuthResponse, RefreshRequest, RefreshResponse, ChangePasswordRequest, User, BackupTarget, BackupJob, BackupVolumeProgress, BackupSchedule, BackupListEntry } from '$lib/types';
+import { auth } from '$lib/stores/auth.svelte';
 
 const BASE = '/api';
 
@@ -15,7 +16,57 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(path: string, options?: RequestInit & { signal?: AbortSignal }): Promise<T> {
-	const res = await fetch(`${BASE}${path}`, options);
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+	};
+
+	const token = auth.getAccessToken();
+	if (token) {
+		headers['Authorization'] = `Bearer ${token}`;
+	}
+
+	const opts: RequestInit = {
+		...options,
+		headers: { ...headers, ...((options?.headers as Record<string, string>) || {}) },
+	};
+
+	const res = await fetch(`${BASE}${path}`, opts);
+
+	if (res.status === 401) {
+		const rt = auth.getRefreshToken();
+		if (rt) {
+			try {
+				const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ refresh_token: rt } as RefreshRequest),
+				});
+				if (refreshRes.ok) {
+					const data: RefreshResponse = await refreshRes.json();
+					auth.updateTokens(data.access_token, data.refresh_token);
+					headers['Authorization'] = `Bearer ${data.access_token}`;
+					const retryRes = await fetch(`${BASE}${path}`, {
+						...options,
+						headers: { ...headers, ...((options?.headers as Record<string, string>) || {}) },
+					});
+					if (!retryRes.ok) {
+						const body = await retryRes.json().catch(() => null) as APIError | null;
+						if (body?.error_code) throw new ApiError(body);
+						throw new Error(`API ${path} failed: ${retryRes.status} ${retryRes.statusText}`);
+					}
+					return retryRes.json();
+				}
+			} catch {
+				// refresh failed
+			}
+		}
+		auth.logout();
+		if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+			window.location.href = '/login';
+		}
+		throw new ApiError({ error_code: 'AUTH.UNAUTHORIZED', message: 'Session expired' });
+	}
+
 	if (!res.ok) {
 		const body = await res.json().catch(() => null) as APIError | null;
 		if (body?.error_code) {
@@ -45,7 +96,6 @@ export function checkDriveHealth(mountpoint: string): Promise<HealthCheckRespons
 export function initDrive(mountpoint: string): Promise<InitDriveResponse> {
 	return fetchJson<InitDriveResponse>('/drives/init', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ mountpoint }),
 	});
 }
@@ -53,7 +103,6 @@ export function initDrive(mountpoint: string): Promise<InitDriveResponse> {
 export function migrateVolume(req: MigrateVolumeRequest): Promise<StartMigrationResponse> {
 	return fetchJson<StartMigrationResponse>('/volumes/migrate', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(req),
 	});
 }
@@ -65,7 +114,6 @@ export function getActiveMigrations(): Promise<MigrationJob[]> {
 export function deleteVolumes(req: DeleteVolumeRequest): Promise<DeleteVolumeResponse> {
 	return fetchJson<DeleteVolumeResponse>('/volumes', {
 		method: 'DELETE',
-		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(req),
 	});
 }
@@ -133,7 +181,6 @@ export function getHistoryJob(jobId: string): Promise<HistoryJobDetail> {
 export function browseVolume(req: BrowseRequest): Promise<BrowseResponse> {
 	return fetchJson<BrowseResponse>('/volumes/browse', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(req),
 	});
 }
@@ -141,7 +188,6 @@ export function browseVolume(req: BrowseRequest): Promise<BrowseResponse> {
 export function readVolumeFile(req: ReadFileRequest): Promise<ReadFileResponse> {
 	return fetchJson<ReadFileResponse>('/volumes/read-file', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(req),
 	});
 }
@@ -160,4 +206,124 @@ export function startApplication(name: string, signal?: AbortSignal): Promise<{ 
 
 export function restartApplication(name: string, signal?: AbortSignal): Promise<{ status: string }> {
 	return fetchJson<{ status: string }>(`/applications/${encodeURIComponent(name)}/restart`, { method: 'POST', signal });
+}
+
+export function login(req: LoginRequest): Promise<AuthResponse> {
+	return fetchJson<AuthResponse>('/auth/login', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export function register(req: RegisterRequest): Promise<AuthResponse> {
+	return fetchJson<AuthResponse>('/auth/register', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export function logout(req: RefreshRequest): Promise<{ message: string }> {
+	return fetchJson<{ message: string }>('/auth/logout', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export function getProfile(): Promise<User> {
+	return fetchJson<User>('/auth/me');
+}
+
+export function changePassword(req: ChangePasswordRequest): Promise<{ message: string }> {
+	return fetchJson<{ message: string }>('/auth/change-password', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export function getUsers(): Promise<User[]> {
+	return fetchJson<User[]>('/auth/users');
+}
+
+export function getBackupTargets(signal?: AbortSignal): Promise<BackupTarget[]> {
+    return fetchJson<BackupTarget[]>('/backup/targets', { signal });
+}
+
+export function createBackupTarget(data: { name: string; provider: string; config: Record<string, unknown> }): Promise<{ id: string; name: string; provider: string; created_at: string }> {
+    return fetchJson('/backup/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+export function updateBackupTarget(id: string, data: { name: string; provider: string; config: Record<string, unknown> }): Promise<{ status: string }> {
+    return fetchJson(`/backup/targets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+export function deleteBackupTarget(id: string): Promise<{ status: string }> {
+    return fetchJson(`/backup/targets/${id}`, { method: 'DELETE' });
+}
+
+export function testBackupTarget(id: string): Promise<{ success: boolean; message: string }> {
+    return fetchJson(`/backup/targets/${id}/test`, { method: 'POST' });
+}
+
+export function runBackup(appName: string, targetId: string): Promise<{ job_id: string; status: string }> {
+    return fetchJson('/backup/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_name: appName, target_id: targetId }),
+    });
+}
+
+export function getBackupJobs(params?: { limit?: number; offset?: number }): Promise<{ jobs: BackupJob[]; total: number }> {
+    const search = new URLSearchParams();
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.offset) search.set('offset', String(params.offset));
+    const qs = search.toString();
+    return fetchJson(`/backup/jobs${qs ? '?' + qs : ''}`);
+}
+
+export function getBackupJob(id: string): Promise<{ id: string; status: string; volumes: BackupVolumeProgress[] }> {
+    return fetchJson(`/backup/jobs/${id}`);
+}
+
+export function listBackupsOnTarget(targetId: string, appName: string): Promise<BackupListEntry[]> {
+    return fetchJson(`/backup/targets/${targetId}/backups?app=${encodeURIComponent(appName)}`);
+}
+
+export function restoreBackup(data: { job_id: string; target_id: string; app_name: string; dest_mountpoint?: string }): Promise<{ job_id: string; app_name: string; status: string; volumes: { volume_name: string; dest_path: string; status: string; error?: string }[] }> {
+    return fetchJson('/backup/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+export function getBackupSchedules(): Promise<BackupSchedule[]> {
+    return fetchJson<BackupSchedule[]>('/backup/schedules');
+}
+
+export function createBackupSchedule(data: { target_id: string; app_name: string; cron_expr: string; retention: number }): Promise<{ id: string }> {
+    return fetchJson('/backup/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+export function updateBackupSchedule(id: string, data: { app_name?: string; cron_expr?: string; retention?: number; enabled?: boolean }): Promise<{ status: string }> {
+    return fetchJson(`/backup/schedules/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+export function deleteBackupSchedule(id: string): Promise<{ status: string }> {
+    return fetchJson(`/backup/schedules/${id}`, { method: 'DELETE' });
 }

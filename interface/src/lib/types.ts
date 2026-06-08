@@ -207,3 +207,89 @@ export interface ReadFileResponse {
 	binary: boolean;
 	size: number;
 }
+
+export interface User {
+	id: number;
+	email: string;
+	username: string;
+	role: 'admin' | 'user';
+	password_change_required: boolean;
+	created_at: string;
+}
+
+export interface LoginRequest {
+	email: string;
+	password: string;
+}
+
+export interface RegisterRequest {
+	email: string;
+	username: string;
+	password: string;
+}
+
+export interface AuthResponse {
+	access_token: string;
+	refresh_token: string;
+	user: User;
+}
+
+export interface RefreshRequest {
+	refresh_token: string;
+}
+
+export interface RefreshResponse {
+	access_token: string;
+	refresh_token: string;
+}
+
+export interface ChangePasswordRequest {
+	old_password: string;
+	new_password: string;
+}
+
+export interface BackupTarget {
+    id: string;
+    name: string;
+    provider: 's3' | 'sftp' | 'local';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface BackupJob {
+    id: string;
+    target_id: string;
+    app_name: string;
+    status: string;
+    total_bytes: number;
+    duration_ms: number;
+    error_message?: string;
+    started_at: string;
+    completed_at: string;
+}
+
+export interface BackupVolumeProgress {
+    VolumeName: string;
+    SourcePath: string;
+    BackupPath: string;
+    Status: string;
+    TotalBytes: number;
+    TransferredBytes: number;
+    ErrorMessage: string;
+}
+
+export interface BackupSchedule {
+    id: string;
+    target_id: string;
+    app_name: string;
+    cron_expr: string;
+    retention: number;
+    enabled: boolean;
+}
+
+export interface BackupListEntry {
+    path: string;
+    name: string;
+    size: number;
+    modified_at: string;
+}
