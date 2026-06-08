@@ -233,6 +233,10 @@ const fr = {
 		latest: "À jour",
 		checkFailed: "Impossible de vérifier les mises à jour",
 	},
+	theme: {
+		light: "Passer en mode clair",
+		dark: "Passer en mode sombre",
+	},
 	error: {
 		"SYSTEM.NOT_FOUND": "Erreur système",
 		"SYSTEM.HEALTH_CHECK_FAILED": "Un ou plusieurs composants système sont manquants",

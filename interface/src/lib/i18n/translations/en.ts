@@ -233,6 +233,10 @@ const en = {
 		latest: "Up to date",
 		checkFailed: "Could not check for updates",
 	},
+	theme: {
+		light: "Switch to light mode",
+		dark: "Switch to dark mode",
+	},
 	error: {
 		"SYSTEM.NOT_FOUND": "System error",
 		"SYSTEM.HEALTH_CHECK_FAILED": "One or more system components are missing",

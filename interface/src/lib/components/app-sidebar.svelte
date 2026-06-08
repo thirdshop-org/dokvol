@@ -12,6 +12,7 @@
 	import HistoryIcon from '@lucide/svelte/icons/clock';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 
 	const VERSION_URL = 'https://raw.githubusercontent.com/thirdshop-org/dokvol/main/VERSION';
 
@@ -105,13 +106,16 @@
 				<span class="text-xs text-muted-foreground">
 					{$t('update.currentVersion', { version: version.version.replace(/^v/, '') })}
 				</span>
-				{#if updateCheckFailed}
-					<span class="text-xs text-muted-foreground">{$t('update.checkFailed')}</span>
-				{:else if updateAvailable}
-					<Badge variant="warning">{$t('update.available')}</Badge>
-				{:else if latestTag}
-					<span class="text-xs text-green-600 dark:text-green-400">{$t('update.latest')}</span>
-				{/if}
+				<div class="flex items-center gap-1">
+					<ThemeToggle />
+					{#if updateCheckFailed}
+						<span class="text-xs text-muted-foreground">{$t('update.checkFailed')}</span>
+					{:else if updateAvailable}
+						<Badge variant="warning">{$t('update.available')}</Badge>
+					{:else if latestTag}
+						<span class="text-xs text-green-600 dark:text-green-400">{$t('update.latest')}</span>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	</Sidebar.Footer>
