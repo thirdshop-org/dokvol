@@ -13,7 +13,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 
-	const GITHUB_API = 'https://api.github.com/repos/thirdshop-org/dokvol/releases/latest';
+	const VERSION_URL = 'https://raw.githubusercontent.com/thirdshop-org/dokvol/main/VERSION';
 
 	const links = [
 		{ href: '/', label: 'nav.home', icon: Home },
@@ -38,7 +38,7 @@
 	}
 
 	let updateAvailable = $derived(
-		version && latestTag && !version.version.startsWith('0.0.1')
+		version && latestTag && version.version
 			? semverGt(latestTag, version.version)
 			: false
 	);
@@ -51,10 +51,9 @@
 		}
 
 		try {
-			const res = await fetch(GITHUB_API);
+			const res = await fetch(VERSION_URL);
 			if (res.ok) {
-				const data = await res.json();
-				latestTag = data.tag_name as string;
+				latestTag = (await res.text()).trim();
 			} else {
 				updateCheckFailed = true;
 			}
@@ -106,9 +105,11 @@
 				<span class="text-xs text-muted-foreground">
 					{$t('update.currentVersion', { version: version.version.replace(/^v/, '') })}
 				</span>
-				{#if updateAvailable}
+				{#if updateCheckFailed}
+					<span class="text-xs text-muted-foreground">{$t('update.checkFailed')}</span>
+				{:else if updateAvailable}
 					<Badge variant="warning">{$t('update.available')}</Badge>
-				{:else if latestTag && !updateAvailable}
+				{:else if latestTag}
 					<span class="text-xs text-green-600 dark:text-green-400">{$t('update.latest')}</span>
 				{/if}
 			</div>
