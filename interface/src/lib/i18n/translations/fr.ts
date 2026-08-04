@@ -57,9 +57,6 @@ const fr = {
 		title: "Volumes",
 		description: "Tous les montages de volumes Docker.",
 		loading: "Chargement…",
-		error: {
-			unknown: "Erreur inconnue",
-		},
 		table: {
 			container: "Conteneur",
 			type: "Type",
@@ -171,7 +168,6 @@ const fr = {
 			close: "Fermer",
 		},
 		error: {
-			unknown: "Erreur inconnue",
 			noDest: "Veuillez sélectionner un disque de destination.",
 			noVolume: "Veuillez sélectionner au moins un volume avec une destination.",
 		},
@@ -333,6 +329,19 @@ const fr = {
 		"CONTAINER.STOP_FAILED": "Impossible d'arrêter le conteneur",
 		"CONTAINER.START_FAILED": "Impossible de démarrer le conteneur",
 		"CONTAINER.TIMEOUT": "Le conteneur a mis trop de temps à s'arrêter",
+		"STORAGE.CHECKSUM_MISMATCH": "La vérification des données a échoué après la copie",
+		"AUTH.UNAUTHORIZED": "Vous devez être connecté pour faire cela",
+		"AUTH.TOKEN_EXPIRED": "Votre session a expiré, veuillez vous reconnecter",
+		"AUTH.INVALID_TOKEN": "Votre session est invalide, veuillez vous reconnecter",
+		"AUTH.FORBIDDEN": "Vous n'avez pas la permission de faire cela",
+		"AUTH.VALIDATION_ERROR": "Veuillez vérifier les informations saisies",
+		"AUTH.EMAIL_EXISTS": "Cet email est déjà enregistré",
+		"AUTH.USERNAME_EXISTS": "Ce nom d'utilisateur est déjà pris",
+		"AUTH.INVALID_CREDENTIALS": "Email/nom d'utilisateur ou mot de passe incorrect",
+		"AUTH.INVALID_REFRESH_TOKEN": "Votre session est invalide, veuillez vous reconnecter",
+		"AUTH.REFRESH_TOKEN_EXPIRED": "Votre session a expiré, veuillez vous reconnecter",
+		"AUTH.USER_NOT_FOUND": "Utilisateur introuvable",
+		"AUTH.WRONG_PASSWORD": "Le mot de passe actuel est incorrect",
 		"default": "Une erreur est survenue",
 	},
 };

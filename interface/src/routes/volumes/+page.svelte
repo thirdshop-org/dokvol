@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getVolumes, getDrives, migrateVolume, deleteVolumes, ApiError } from '$lib/api';
+	import { getVolumes, getDrives, migrateVolume, deleteVolumes } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import type { VolumeDetail, DriveInfo } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -9,6 +9,7 @@
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import FileExplorer from '$lib/components/file-explorer.svelte';
 	import { LoaderCircle, Trash2, ArrowUpFromLine, Search, Undo2 } from '@lucide/svelte';
+	import { errorMessage } from '$lib/utils/errors';
 
 	type VolumeRow = VolumeDetail & { checked: boolean };
 
@@ -36,7 +37,7 @@
 			rows = vols.map(v => ({ ...v, checked: false }));
 			drives = await getDrives();
 		} catch (e) {
-			error = e instanceof Error ? e.message : $t('volumes.error.unknown');
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -63,15 +64,6 @@
 
 	function selectedCount() {
 		return rows.filter(r => r.checked).length;
-	}
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof ApiError) {
-			const key = `error.${e.errorCode}`;
-			const msg = $t(key);
-			return msg !== key ? msg : e.message;
-		}
-		return e instanceof Error ? e.message : $t('volumes.error.unknown');
 	}
 
 	async function handleMove() {

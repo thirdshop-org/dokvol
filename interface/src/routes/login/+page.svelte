@@ -2,8 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { t } from '$lib/i18n';
 	import { login as apiLogin } from '$lib/api';
-	import { ApiError } from '$lib/api';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { errorMessage } from '$lib/utils/errors';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Input from '$lib/components/ui/input/index.js';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -30,11 +30,7 @@
 				goto('/');
 			}
 		} catch (e) {
-			if (e instanceof ApiError) {
-				error = e.message;
-			} else {
-				error = String(e);
-			}
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}

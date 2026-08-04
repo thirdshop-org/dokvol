@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n';
-	import { getTrash, restoreTrashEntry, purgeTrashEntry, ApiError } from '$lib/api';
+	import { getTrash, restoreTrashEntry, purgeTrashEntry } from '$lib/api';
+	import { errorMessage } from '$lib/utils/errors';
 	import type { TrashEntry } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -18,15 +19,6 @@
 	let purgeTarget = $state<TrashEntry | null>(null);
 	let acting = $state(false);
 	let actionError = $state<string | null>(null);
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof ApiError) {
-			const key = `error.${e.errorCode}`;
-			const msg = $t(key);
-			return msg !== key ? msg : e.message;
-		}
-		return e instanceof Error ? e.message : $t('error.default');
-	}
 
 	async function load() {
 		loading = true;

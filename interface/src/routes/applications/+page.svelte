@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, getStatsApplication, getStatsVolume, stopApplication, startApplication, restartApplication, ApiError } from '$lib/api';
+	import { getApplications, getDrives, migrateVolume, getActiveMigrations, getMigrationStatus, getStatsApplication, getStatsVolume, stopApplication, startApplication, restartApplication } from '$lib/api';
+	import { errorMessage } from '$lib/utils/errors';
 	import { t } from '$lib/i18n';
 	import type { ApplicationVolumes, DriveInfo, VolumeDetail, MigrationJob, VolumeProgress, StatsApplication, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -128,15 +129,6 @@
 	let volumes = $state<VolumeRow[]>([]);
 	let mode = $state<'same' | 'individual'>('same');
 	let sameDest = $state<string>('');
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof ApiError) {
-			const key = `error.${e.errorCode}`;
-			const msg = $t(key);
-			return msg !== key ? msg : e.message;
-		}
-		return e instanceof Error ? e.message : $t('applications.error.unknown');
-	}
 
 	onMount(async () => {
 		try {

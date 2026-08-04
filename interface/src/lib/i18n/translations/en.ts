@@ -57,9 +57,6 @@ const en = {
 		title: "Volumes",
 		description: "All Docker volume mounts.",
 		loading: "Loading…",
-		error: {
-			unknown: "Unknown error",
-		},
 		table: {
 			container: "Container",
 			type: "Type",
@@ -171,7 +168,6 @@ const en = {
 			close: "Close",
 		},
 		error: {
-			unknown: "Unknown error",
 			noDest: "Please select a destination drive.",
 			noVolume: "Please select at least one volume with a destination.",
 		},
@@ -333,6 +329,19 @@ const en = {
 		"CONTAINER.STOP_FAILED": "Could not stop container",
 		"CONTAINER.START_FAILED": "Could not start container",
 		"CONTAINER.TIMEOUT": "Container took too long to stop",
+		"STORAGE.CHECKSUM_MISMATCH": "Data verification failed after copy",
+		"AUTH.UNAUTHORIZED": "You must be signed in to do that",
+		"AUTH.TOKEN_EXPIRED": "Your session has expired, please sign in again",
+		"AUTH.INVALID_TOKEN": "Your session is invalid, please sign in again",
+		"AUTH.FORBIDDEN": "You don't have permission to do that",
+		"AUTH.VALIDATION_ERROR": "Please check the information you entered",
+		"AUTH.EMAIL_EXISTS": "This email is already registered",
+		"AUTH.USERNAME_EXISTS": "This username is already taken",
+		"AUTH.INVALID_CREDENTIALS": "Incorrect email/username or password",
+		"AUTH.INVALID_REFRESH_TOKEN": "Your session is invalid, please sign in again",
+		"AUTH.REFRESH_TOKEN_EXPIRED": "Your session has expired, please sign in again",
+		"AUTH.USER_NOT_FOUND": "User not found",
+		"AUTH.WRONG_PASSWORD": "Current password is incorrect",
 		"default": "An error occurred",
 	},
 };

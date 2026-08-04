@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { t } from "$lib/i18n";
-	import { getPreferences, updatePreference, ApiError } from "$lib/api";
+	import { getPreferences, updatePreference } from "$lib/api";
+	import { errorMessage } from "$lib/utils/errors";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -15,15 +16,6 @@
 	let saving = $state<Record<string, boolean>>({});
 	let saveError = $state<Record<string, string | null>>({});
 	let saved = $state<Record<string, boolean>>({});
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof ApiError) {
-			const key = `error.${e.errorCode}`;
-			const msg = $t(key);
-			return msg !== key ? msg : e.message;
-		}
-		return e instanceof Error ? e.message : $t("error.default");
-	}
 
 	onMount(async () => {
 		try {

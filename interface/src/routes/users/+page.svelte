@@ -3,7 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { t } from '$lib/i18n';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { getUsers, createUser, deleteUser, ApiError } from '$lib/api';
+	import { getUsers, createUser, deleteUser } from '$lib/api';
+	import { errorMessage } from '$lib/utils/errors';
 	import type { User } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -29,15 +30,6 @@
 
 	let confirmDeleteUser = $state<User | null>(null);
 	let deleting = $state(false);
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof ApiError) {
-			const key = `error.${e.errorCode}`;
-			const msg = $t(key);
-			return msg !== key ? msg : e.message;
-		}
-		return e instanceof Error ? e.message : $t('error.default');
-	}
 
 	async function load() {
 		loading = true;
