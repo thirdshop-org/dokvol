@@ -8,6 +8,7 @@
 	import { LoaderCircle, Plus, Trash2 } from '@lucide/svelte';
 	import { errorMessage } from '$lib/utils/errors';
 	import { t } from '$lib/i18n';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 
 	let schedules = $state<BackupSchedule[]>([]);
 	let targets = $state<BackupTarget[]>([]);
@@ -25,6 +26,8 @@
 
 	let toggling = $state<Record<string, boolean>>({});
 	let deleting = $state<Record<string, boolean>>({});
+	let deleteTarget = $state<BackupSchedule | null>(null);
+	let deleteError = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
@@ -77,14 +80,17 @@
 		}
 	}
 
-	async function handleDelete(id: string) {
-		if (!confirm($t('backup.schedules.confirmDelete'))) return;
+	async function handleDelete() {
+		if (!deleteTarget) return;
+		const id = deleteTarget.id;
 		deleting[id] = true;
+		deleteError = null;
 		try {
 			await deleteBackupSchedule(id);
 			schedules = schedules.filter(s => s.id !== id);
+			deleteTarget = null;
 		} catch (e) {
-			alert(errorMessage(e));
+			deleteError = errorMessage(e);
 		} finally {
 			deleting[id] = false;
 		}
@@ -206,7 +212,7 @@
 								</button>
 							</td>
 							<td class="px-4 py-3 text-center">
-								<Button size="sm" variant="destructive" onclick={() => handleDelete(sched.id)} disabled={deleting[sched.id]}>
+								<Button size="sm" variant="destructive" onclick={() => (deleteTarget = sched)} disabled={deleting[sched.id]}>
 									{#if deleting[sched.id]}<LoaderCircle class="size-3 animate-spin" />{:else}<Trash2 class="size-3" />{/if}
 								</Button>
 							</td>
@@ -217,3 +223,14 @@
 		</div>
 	{/if}
 </div>
+
+<ConfirmDialog
+	open={deleteTarget !== null}
+	onOpenChange={(v) => { if (!v) { deleteTarget = null; deleteError = null; } }}
+	title={$t('backup.schedules.confirmDelete')}
+	confirmLabel={$t('backup.delete')}
+	cancelLabel={$t('backup.cancel')}
+	loading={deleteTarget ? deleting[deleteTarget.id] : false}
+	error={deleteError}
+	onconfirm={handleDelete}
+/>

@@ -12,6 +12,7 @@
 	import { formatBytes } from '$lib/utils/format';
 	import { errorMessage } from '$lib/utils/errors';
 	import { t } from '$lib/i18n';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 
 	let target = $state<BackupTarget | null>(null);
 	let loading = $state(true);
@@ -20,6 +21,10 @@
 	let testing = $state(false);
 	let testMsg = $state<string | null>(null);
 	let testSuccess = $state(false);
+
+	let confirmDeleteOpen = $state(false);
+	let deleting = $state(false);
+	let deleteError = $state<string | null>(null);
 
 	let backups = $state<BackupListEntry[]>([]);
 	let backupsLoading = $state(false);
@@ -62,12 +67,15 @@
 	}
 
 	async function handleDelete() {
-		if (!target || !confirm($t('backup.targetDetail.confirmDelete'))) return;
+		if (!target) return;
+		deleting = true;
+		deleteError = null;
 		try {
 			await deleteBackupTarget(target.id);
 			goto('/backup/targets');
 		} catch (e) {
-			alert(errorMessage(e));
+			deleteError = errorMessage(e);
+			deleting = false;
 		}
 	}
 
@@ -139,7 +147,7 @@
 					<Plug class="size-4" />
 					{$t('backup.targetDetail.testConnection')}
 				</Button>
-				<Button variant="destructive" onclick={handleDelete}>
+				<Button variant="destructive" onclick={() => (confirmDeleteOpen = true)}>
 					<Trash2 class="size-4" />
 					{$t('backup.targetDetail.delete')}
 				</Button>
@@ -210,3 +218,14 @@
 		</div>
 	{/if}
 </div>
+
+<ConfirmDialog
+	open={confirmDeleteOpen}
+	onOpenChange={(v) => { confirmDeleteOpen = v; if (!v) deleteError = null; }}
+	title={$t('backup.targetDetail.confirmDelete')}
+	confirmLabel={$t('backup.delete')}
+	cancelLabel={$t('backup.cancel')}
+	loading={deleting}
+	error={deleteError}
+	onconfirm={handleDelete}
+/>

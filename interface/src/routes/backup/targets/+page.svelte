@@ -6,6 +6,7 @@
 	import { LoaderCircle, Plus, Trash2, Plug, ArrowRight } from '@lucide/svelte';
 	import { errorMessage } from '$lib/utils/errors';
 	import { t } from '$lib/i18n';
+	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 
 	let targets = $state<BackupTarget[]>([]);
 	let loading = $state(true);
@@ -13,6 +14,9 @@
 	let testing = $state<Record<string, boolean>>({});
 	let deleting = $state<Record<string, boolean>>({});
 	let testResult = $state<Record<string, { success: boolean; message: string } | null>>({});
+
+	let deleteTarget = $state<BackupTarget | null>(null);
+	let deleteError = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
@@ -36,14 +40,17 @@
 		}
 	}
 
-	async function handleDelete(id: string) {
-		if (!confirm($t('backup.targets.confirmDelete'))) return;
+	async function handleDelete() {
+		if (!deleteTarget) return;
+		const id = deleteTarget.id;
 		deleting[id] = true;
+		deleteError = null;
 		try {
 			await deleteBackupTarget(id);
 			targets = targets.filter(t => t.id !== id);
+			deleteTarget = null;
 		} catch (e) {
-			alert(errorMessage(e));
+			deleteError = errorMessage(e);
 		} finally {
 			deleting[id] = false;
 		}
@@ -125,7 +132,7 @@
 										{/if}
 										{$t('backup.targets.test')}
 									</Button>
-									<Button size="sm" variant="destructive" onclick={() => handleDelete(target.id)} disabled={deleting[target.id]}>
+									<Button size="sm" variant="destructive" onclick={() => (deleteTarget = target)} disabled={deleting[target.id]}>
 										{#if deleting[target.id]}
 											<LoaderCircle class="size-3 animate-spin" />
 										{:else}
@@ -146,3 +153,14 @@
 		</div>
 	{/if}
 </div>
+
+<ConfirmDialog
+	open={deleteTarget !== null}
+	onOpenChange={(v) => { if (!v) { deleteTarget = null; deleteError = null; } }}
+	title={$t('backup.targets.confirmDelete')}
+	confirmLabel={$t('backup.delete')}
+	cancelLabel={$t('backup.cancel')}
+	loading={deleteTarget ? deleting[deleteTarget.id] : false}
+	error={deleteError}
+	onconfirm={handleDelete}
+/>

@@ -270,6 +270,7 @@ const fr = {
 		noSchedules: "Aucune planification configurée",
 		enabled: "Activée",
 		disabled: "Désactivée",
+		delete: "Supprimer",
 		jobs: {
 			title: "Jobs de sauvegarde",
 			totalCount: "{{n}} job(s) au total",

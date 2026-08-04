@@ -270,6 +270,7 @@ const en = {
 		noSchedules: "No schedules configured",
 		enabled: "Enabled",
 		disabled: "Disabled",
+		delete: "Delete",
 		jobs: {
 			title: "Backup Jobs",
 			totalCount: "{{n}} job(s) total",
