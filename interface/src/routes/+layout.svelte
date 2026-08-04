@@ -11,7 +11,7 @@
 
 	let { children } = $props();
 
-	const publicRoutes = ['/login', '/register'];
+	const publicRoutes = ['/login'];
 
 	onMount(() => {
 		const unsub = auth.isLoggedIn.subscribe((loggedIn) => {

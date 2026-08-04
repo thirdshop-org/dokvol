@@ -222,7 +222,7 @@ export interface LoginRequest {
 	password: string;
 }
 
-export interface RegisterRequest {
+export interface CreateUserRequest {
 	email: string;
 	username: string;
 	password: string;

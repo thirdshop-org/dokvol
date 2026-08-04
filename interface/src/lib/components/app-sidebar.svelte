@@ -14,6 +14,7 @@ import AreaChart from '@lucide/svelte/icons/area-chart';
 import HistoryIcon from '@lucide/svelte/icons/clock';
 import LogOut from '@lucide/svelte/icons/log-out';
 import UserIcon from '@lucide/svelte/icons/user';
+import UsersIcon from '@lucide/svelte/icons/users';
 import Database from '@lucide/svelte/icons/database';
 	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -21,7 +22,7 @@ import Database from '@lucide/svelte/icons/database';
 
 	const VERSION_URL = 'https://raw.githubusercontent.com/thirdshop-org/dokvol/main/VERSION';
 
-	const links = [
+	const baseLinks = [
 		{ href: '/', label: 'nav.home', icon: Home },
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
@@ -37,9 +38,17 @@ import Database from '@lucide/svelte/icons/database';
 
 	let currentUser = $state(auth.user);
 	let isLoggedIn = $state(false);
+	let isAdmin = $state(false);
 
 	auth.user.subscribe(u => currentUser = u);
 	auth.isLoggedIn.subscribe(l => isLoggedIn = l);
+	auth.isAdmin.subscribe(a => isAdmin = a);
+
+	let links = $derived(
+		isAdmin
+			? [...baseLinks, { href: '/users', label: 'nav.users', icon: UsersIcon }]
+			: baseLinks
+	);
 
 	function semverGt(a: string, b: string): boolean {
 		const pa = a.replace(/^v/, '').split('.').map(Number);

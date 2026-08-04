@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse, LoginRequest, RegisterRequest, AuthResponse, RefreshRequest, RefreshResponse, ChangePasswordRequest, User, BackupTarget, BackupJob, BackupVolumeProgress, BackupSchedule, BackupListEntry } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse, LoginRequest, CreateUserRequest, AuthResponse, RefreshRequest, RefreshResponse, ChangePasswordRequest, User, BackupTarget, BackupJob, BackupVolumeProgress, BackupSchedule, BackupListEntry } from '$lib/types';
 import { auth } from '$lib/stores/auth.svelte';
 
 const BASE = '/api';
@@ -215,13 +215,6 @@ export function login(req: LoginRequest): Promise<AuthResponse> {
 	});
 }
 
-export function register(req: RegisterRequest): Promise<AuthResponse> {
-	return fetchJson<AuthResponse>('/auth/register', {
-		method: 'POST',
-		body: JSON.stringify(req),
-	});
-}
-
 export function logout(req: RefreshRequest): Promise<{ message: string }> {
 	return fetchJson<{ message: string }>('/auth/logout', {
 		method: 'POST',
@@ -242,6 +235,17 @@ export function changePassword(req: ChangePasswordRequest): Promise<{ message: s
 
 export function getUsers(): Promise<User[]> {
 	return fetchJson<User[]>('/auth/users');
+}
+
+export function createUser(req: CreateUserRequest): Promise<User> {
+	return fetchJson<User>('/auth/users', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export function deleteUser(id: number): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/auth/users/${id}`, { method: 'DELETE' });
 }
 
 export function getBackupTargets(signal?: AbortSignal): Promise<BackupTarget[]> {

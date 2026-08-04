@@ -68,11 +68,5 @@
 				</Button>
 			</div>
 		</Card.Content>
-		<Card.Footer class="justify-center">
-			<p class="text-sm text-muted-foreground">
-				{$t('auth.noAccount')}
-				<a href="/register" class="text-primary underline-offset-4 hover:underline">{$t('auth.register')}</a>
-			</p>
-		</Card.Footer>
 	</Card.Root>
 </div>
