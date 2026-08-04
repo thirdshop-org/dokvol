@@ -7,6 +7,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle, ArrowLeft, RotateCcw, Download } from '@lucide/svelte';
 	import { formatBytes } from '$lib/utils/format';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let jobId = $state('');
 	let status = $state('');
@@ -28,7 +30,7 @@
 				}
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load job';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -75,12 +77,12 @@
 	<div>
 		<a href="/backup/jobs" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
 			<ArrowLeft class="size-4" />
-			Back to jobs
+			{$t('backup.jobDetail.backToJobs')}
 		</a>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else}
@@ -101,14 +103,14 @@
 					<a href="/backup/restore/{jobId}">
 						<Button>
 							<Download class="size-4" />
-							Restore
+							{$t('backup.jobDetail.restore')}
 						</Button>
 					</a>
 				{/if}
 				{#if status === 'failed'}
-					<Button variant="outline" onclick={() => alert('Retry not implemented yet')}>
+					<Button variant="outline" onclick={() => alert($t('backup.jobDetail.retryNotImplemented'))}>
 						<RotateCcw class="size-4" />
-						Retry
+						{$t('backup.jobDetail.retry')}
 					</Button>
 				{/if}
 			</div>
@@ -118,11 +120,11 @@
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">Volume</th>
-						<th class="px-4 py-3 text-left font-medium">Source Path</th>
-						<th class="px-4 py-3 text-left font-medium">Status</th>
-						<th class="px-4 py-3 text-right font-medium">Progress</th>
-						<th class="px-4 py-3 text-left font-medium">Error</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobDetail.table.volume')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobDetail.table.sourcePath')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobDetail.table.status')}</th>
+						<th class="px-4 py-3 text-right font-medium">{$t('backup.jobDetail.table.progress')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobDetail.table.error')}</th>
 					</tr>
 				</thead>
 				<tbody>

@@ -4,6 +4,8 @@
 	import type { BackupTarget } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle, Plus, Trash2, Plug, ArrowRight } from '@lucide/svelte';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let targets = $state<BackupTarget[]>([]);
 	let loading = $state(true);
@@ -16,7 +18,7 @@
 		try {
 			targets = await getBackupTargets();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load targets';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -28,20 +30,20 @@
 			const res = await testBackupTarget(id);
 			testResult[id] = res;
 		} catch (e) {
-			testResult[id] = { success: false, message: e instanceof Error ? e.message : 'Test failed' };
+			testResult[id] = { success: false, message: errorMessage(e) };
 		} finally {
 			testing[id] = false;
 		}
 	}
 
 	async function handleDelete(id: string) {
-		if (!confirm('Delete this backup target?')) return;
+		if (!confirm($t('backup.targets.confirmDelete'))) return;
 		deleting[id] = true;
 		try {
 			await deleteBackupTarget(id);
 			targets = targets.filter(t => t.id !== id);
 		} catch (e) {
-			alert(e instanceof Error ? e.message : 'Delete failed');
+			alert(errorMessage(e));
 		} finally {
 			deleting[id] = false;
 		}
@@ -60,28 +62,28 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Backup Targets</h1>
-			<p class="text-muted-foreground">Configure where backups are stored</p>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('backup.targets.title')}</h1>
+			<p class="text-muted-foreground">{$t('backup.targets.description')}</p>
 		</div>
 		<a href="/backup/targets/new">
 			<Button>
 				<Plus class="size-4" />
-				New Target
+				{$t('backup.newTarget')}
 			</Button>
 		</a>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else if targets.length === 0}
 		<div class="rounded-lg border border-dashed p-12 text-center">
-			<p class="text-muted-foreground">No backup targets configured</p>
+			<p class="text-muted-foreground">{$t('backup.targets.empty')}</p>
 			<a href="/backup/targets/new" class="mt-2 inline-block">
 				<Button variant="outline">
 					<Plus class="size-4" />
-					Create your first target
+					{$t('backup.targets.createFirst')}
 				</Button>
 			</a>
 		</div>
@@ -90,10 +92,10 @@
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">Name</th>
-						<th class="px-4 py-3 text-left font-medium">Provider</th>
-						<th class="px-4 py-3 text-left font-medium">Created</th>
-						<th class="px-4 py-3 text-right font-medium">Actions</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.targets.table.name')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.targets.table.provider')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.targets.table.created')}</th>
+						<th class="px-4 py-3 text-right font-medium">{$t('backup.targets.table.actions')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -121,7 +123,7 @@
 										{:else}
 											<Plug class="size-3" />
 										{/if}
-										Test
+										{$t('backup.targets.test')}
 									</Button>
 									<Button size="sm" variant="destructive" onclick={() => handleDelete(target.id)} disabled={deleting[target.id]}>
 										{#if deleting[target.id]}

@@ -10,6 +10,8 @@
 	import { LoaderCircle, Plug, Trash2, ArrowLeft, Play, Database } from '@lucide/svelte';
 	import { feedbackBoxClass } from '$lib/utils/status';
 	import { formatBytes } from '$lib/utils/format';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let target = $state<BackupTarget | null>(null);
 	let loading = $state(true);
@@ -32,12 +34,12 @@
 			const all = await getBackupTargets();
 			const found = all.find(t => t.id === $page.params.id);
 			if (!found) {
-				error = 'Target not found';
+				error = $t('backup.targetDetail.notFound');
 			} else {
 				target = found;
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load target';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -52,7 +54,7 @@
 			testMsg = res.message;
 			testSuccess = res.success;
 		} catch (e) {
-			testMsg = e instanceof Error ? e.message : 'Test failed';
+			testMsg = errorMessage(e);
 			testSuccess = false;
 		} finally {
 			testing = false;
@@ -60,12 +62,12 @@
 	}
 
 	async function handleDelete() {
-		if (!target || !confirm('Delete this backup target?')) return;
+		if (!target || !confirm($t('backup.targetDetail.confirmDelete'))) return;
 		try {
 			await deleteBackupTarget(target.id);
 			goto('/backup/targets');
 		} catch (e) {
-			alert(e instanceof Error ? e.message : 'Delete failed');
+			alert(errorMessage(e));
 		}
 	}
 
@@ -87,9 +89,9 @@
 		runMsg = null;
 		try {
 			const res = await runBackup(selectedApp, target.id);
-			runMsg = `Backup started — Job ID: ${res.job_id}`;
+			runMsg = $t('backup.targetDetail.backupStarted', { id: res.job_id });
 		} catch (e) {
-			runMsg = e instanceof Error ? e.message : 'Backup failed';
+			runMsg = errorMessage(e);
 		} finally {
 			running = false;
 		}
@@ -114,12 +116,12 @@
 	<div>
 		<a href="/backup/targets" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
 			<ArrowLeft class="size-4" />
-			Back to targets
+			{$t('backup.targetDetail.backToTargets')}
 		</a>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else if target}
@@ -128,18 +130,18 @@
 				<h1 class="text-2xl font-bold tracking-tight">{target.name}</h1>
 				<p class="text-muted-foreground">
 					<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-100">{target.provider.toUpperCase()}</span>
-					<span class="ml-2">Created {new Date(target.created_at).toLocaleString()}</span>
+					<span class="ml-2">{$t('backup.targetDetail.created')} {new Date(target.created_at).toLocaleString()}</span>
 				</p>
 			</div>
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={handleTest} disabled={testing}>
 					{#if testing}<LoaderCircle class="size-4 animate-spin" />{/if}
 					<Plug class="size-4" />
-					Test Connection
+					{$t('backup.targetDetail.testConnection')}
 				</Button>
 				<Button variant="destructive" onclick={handleDelete}>
 					<Trash2 class="size-4" />
-					Delete
+					{$t('backup.targetDetail.delete')}
 				</Button>
 			</div>
 		</div>
@@ -153,17 +155,17 @@
 		<div class="grid gap-6 md:grid-cols-2">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>Trigger Backup</Card.Title>
+					<Card.Title>{$t('backup.targetDetail.triggerBackup')}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-3">
 					<div class="space-y-2">
-						<label for="trigger-app" class="text-sm font-medium">Application</label>
+						<label for="trigger-app" class="text-sm font-medium">{$t('backup.targetDetail.application')}</label>
 						<select
 							id="trigger-app"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={selectedApp}
 						>
-							<option value="">Select an application...</option>
+							<option value="">{$t('backup.targetDetail.selectApp')}</option>
 							{#each apps as app (app.ContainerName)}
 								<option value={app.ContainerName}>{app.ContainerName.replace(/^\//, '')}</option>
 							{/each}
@@ -172,7 +174,7 @@
 					<Button onclick={handleRunBackup} disabled={running || !selectedApp}>
 						{#if running}<LoaderCircle class="size-4 animate-spin" />{/if}
 						<Play class="size-4" />
-						Run Backup
+						{$t('backup.targetDetail.runBackup')}
 					</Button>
 					{#if runMsg}
 						<p class="text-sm text-muted-foreground">{runMsg}</p>
@@ -182,15 +184,15 @@
 
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>Available Backups</Card.Title>
+					<Card.Title>{$t('backup.targetDetail.availableBackups')}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					{#if !selectedApp}
-						<p class="text-sm text-muted-foreground">Select an application above to see available backups</p>
+						<p class="text-sm text-muted-foreground">{$t('backup.targetDetail.selectAppHint')}</p>
 					{:else if backupsLoading}
-						<p class="text-sm text-muted-foreground">Loading backups...</p>
+						<p class="text-sm text-muted-foreground">{$t('backup.targetDetail.loadingBackups')}</p>
 					{:else if backups.length === 0}
-						<p class="text-sm text-muted-foreground">No backups found for this application</p>
+						<p class="text-sm text-muted-foreground">{$t('backup.targetDetail.noBackups')}</p>
 					{:else}
 						<div class="space-y-2">
 							{#each backups as entry (entry.path)}

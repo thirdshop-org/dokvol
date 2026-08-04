@@ -6,6 +6,8 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { LoaderCircle, Plus, Trash2 } from '@lucide/svelte';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let schedules = $state<BackupSchedule[]>([]);
 	let targets = $state<BackupTarget[]>([]);
@@ -26,16 +28,16 @@
 
 	onMount(async () => {
 		try {
-			const [s, t, a] = await Promise.all([
+			const [s, tg, a] = await Promise.all([
 				getBackupSchedules(),
 				getBackupTargets(),
 				getApplications(),
 			]);
 			schedules = s;
-			targets = t;
+			targets = tg;
 			apps = a;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load schedules';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -43,7 +45,7 @@
 
 	async function handleCreate() {
 		if (!newApp || !newTarget || !newCron) {
-			createError = 'All fields are required';
+			createError = $t('backup.schedules.allFieldsRequired');
 			return;
 		}
 		creating = true;
@@ -57,7 +59,7 @@
 			newCron = '0 2 * * *';
 			newRetention = 7;
 		} catch (e) {
-			createError = e instanceof Error ? e.message : 'Failed to create schedule';
+			createError = errorMessage(e);
 		} finally {
 			creating = false;
 		}
@@ -76,13 +78,13 @@
 	}
 
 	async function handleDelete(id: string) {
-		if (!confirm('Delete this schedule?')) return;
+		if (!confirm($t('backup.schedules.confirmDelete'))) return;
 		deleting[id] = true;
 		try {
 			await deleteBackupSchedule(id);
 			schedules = schedules.filter(s => s.id !== id);
 		} catch (e) {
-			alert(e instanceof Error ? e.message : 'Delete failed');
+			alert(errorMessage(e));
 		} finally {
 			deleting[id] = false;
 		}
@@ -92,54 +94,54 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Backup Schedules</h1>
-			<p class="text-muted-foreground">Automate backups with cron schedules</p>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('backup.schedules.title')}</h1>
+			<p class="text-muted-foreground">{$t('backup.schedules.description')}</p>
 		</div>
 		<Button onclick={() => (showForm = !showForm)}>
 			<Plus class="size-4" />
-			{showForm ? 'Cancel' : 'New Schedule'}
+			{showForm ? $t('backup.cancel') : $t('backup.schedules.newSchedule')}
 		</Button>
 	</div>
 
 	{#if showForm}
 		<Card.Root>
 			<Card.Content class="space-y-4 pt-6">
-				<h3 class="text-sm font-semibold">Create Schedule</h3>
+				<h3 class="text-sm font-semibold">{$t('backup.schedules.createTitle')}</h3>
 				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
-						<label for="sched-app" class="text-sm font-medium">Application</label>
+						<label for="sched-app" class="text-sm font-medium">{$t('backup.schedules.application')}</label>
 						<select
 							id="sched-app"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={newApp}
 							disabled={creating}
 						>
-							<option value="">Select...</option>
+							<option value="">{$t('backup.schedules.select')}</option>
 							{#each apps as app (app.ContainerName)}
 								<option value={app.ContainerName}>{app.ContainerName.replace(/^\//, '')}</option>
 							{/each}
 						</select>
 					</div>
 					<div class="space-y-2">
-						<label for="sched-target" class="text-sm font-medium">Target</label>
+						<label for="sched-target" class="text-sm font-medium">{$t('backup.schedules.target')}</label>
 						<select
 							id="sched-target"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={newTarget}
 							disabled={creating}
 						>
-							<option value="">Select...</option>
-							{#each targets as t (t.id)}
-								<option value={t.id}>{t.name} ({t.provider})</option>
+							<option value="">{$t('backup.schedules.select')}</option>
+							{#each targets as tgt (tgt.id)}
+								<option value={tgt.id}>{tgt.name} ({tgt.provider})</option>
 							{/each}
 						</select>
 					</div>
 					<div class="space-y-2">
-						<label for="sched-cron" class="text-sm font-medium">Cron Expression</label>
+						<label for="sched-cron" class="text-sm font-medium">{$t('backup.schedules.cronExpr')}</label>
 						<Input id="sched-cron" bind:value={newCron} placeholder="0 2 * * *" disabled={creating} />
 					</div>
 					<div class="space-y-2">
-						<label for="sched-retention" class="text-sm font-medium">Retention (days)</label>
+						<label for="sched-retention" class="text-sm font-medium">{$t('backup.schedules.retention')}</label>
 						<Input id="sched-retention" bind:value={newRetention} type="number" min="1" disabled={creating} />
 					</div>
 				</div>
@@ -149,7 +151,7 @@
 				<div class="flex justify-end">
 					<Button onclick={handleCreate} disabled={creating || !newApp || !newTarget || !newCron}>
 						{#if creating}<LoaderCircle class="size-4 animate-spin" />{/if}
-						Create Schedule
+						{$t('backup.schedules.create')}
 					</Button>
 				</div>
 			</Card.Content>
@@ -157,24 +159,24 @@
 	{/if}
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else if schedules.length === 0 && !showForm}
 		<div class="rounded-lg border border-dashed p-12 text-center">
-			<p class="text-muted-foreground">No schedules configured</p>
+			<p class="text-muted-foreground">{$t('backup.schedules.empty')}</p>
 		</div>
 	{:else}
 		<div class="rounded-lg border">
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">Application</th>
-						<th class="px-4 py-3 text-left font-medium">Target</th>
-						<th class="px-4 py-3 text-left font-medium">Cron</th>
-						<th class="px-4 py-3 text-center font-medium">Retention</th>
-						<th class="px-4 py-3 text-center font-medium">Enabled</th>
-						<th class="px-4 py-3 text-center font-medium">Actions</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.schedules.table.application')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.schedules.table.target')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.schedules.table.cron')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('backup.schedules.table.retention')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('backup.schedules.table.enabled')}</th>
+						<th class="px-4 py-3 text-center font-medium">{$t('backup.schedules.table.actions')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -194,7 +196,7 @@
 									class:bg-input={!sched.enabled}
 									role="switch"
 									aria-checked={sched.enabled}
-									aria-label={sched.enabled ? 'Disable schedule' : 'Enable schedule'}
+									aria-label={sched.enabled ? $t('backup.schedules.disableSchedule') : $t('backup.schedules.enableSchedule')}
 								>
 									<span
 										class="pointer-events-none block size-4 rounded-full bg-white shadow-lg ring-0 transition-transform"

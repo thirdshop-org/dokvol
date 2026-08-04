@@ -5,6 +5,8 @@
 	import { LoaderCircle } from '@lucide/svelte';
 	import { statusBadgeClass } from '$lib/utils/status';
 	import { formatBytes } from '$lib/utils/format';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let jobs = $state<BackupJob[]>([]);
 	let total = $state(0);
@@ -18,7 +20,7 @@
 			jobs = res.jobs;
 			total = res.total;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load jobs';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -53,13 +55,13 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Backup Jobs</h1>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('backup.jobs.title')}</h1>
 			<p class="text-muted-foreground">
-				{total} job{total !== 1 ? 's' : ''} total
+				{$t('backup.jobs.totalCount', { n: total })}
 				{#if hasActive()}
 					<span class="ml-2 inline-flex items-center gap-1 text-primary">
 						<LoaderCircle class="size-3 animate-spin" />
-						Active jobs running
+						{$t('backup.jobs.activeRunning')}
 					</span>
 				{/if}
 			</p>
@@ -67,23 +69,23 @@
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else if jobs.length === 0}
 		<div class="rounded-lg border border-dashed p-12 text-center">
-			<p class="text-muted-foreground">No backup jobs yet</p>
+			<p class="text-muted-foreground">{$t('backup.noJobs')}</p>
 		</div>
 	{:else}
 		<div class="rounded-lg border">
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
-						<th class="px-4 py-3 text-left font-medium">App</th>
-						<th class="px-4 py-3 text-left font-medium">Status</th>
-						<th class="px-4 py-3 text-left font-medium">Size</th>
-						<th class="px-4 py-3 text-left font-medium">Started</th>
-						<th class="px-4 py-3 text-left font-medium">Duration</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobs.table.app')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobs.table.status')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobs.table.size')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobs.table.started')}</th>
+						<th class="px-4 py-3 text-left font-medium">{$t('backup.jobs.table.duration')}</th>
 					</tr>
 				</thead>
 				<tbody>

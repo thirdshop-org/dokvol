@@ -10,6 +10,8 @@
 	import { LoaderCircle, ArrowLeft, Download } from '@lucide/svelte';
 	import { feedbackBoxClass } from '$lib/utils/status';
 	import { formatBytes } from '$lib/utils/format';
+	import { errorMessage } from '$lib/utils/errors';
+	import { t } from '$lib/i18n';
 
 	let jobId = $state('');
 	let status = $state('');
@@ -37,7 +39,7 @@
 			targets = ts;
 			appName = job.id; // API doesn't return app_name in getBackupJob, infer from context
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load job details';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -45,7 +47,7 @@
 
 	async function handleRestore() {
 		if (!selectedTargetId) {
-			restoreResult = 'Please select a target';
+			restoreResult = $t('backup.restore.selectTargetRequired');
 			restoreSuccess = false;
 			return;
 		}
@@ -58,10 +60,10 @@
 				app_name: appName,
 				dest_mountpoint: destMountpoint || undefined,
 			});
-			restoreResult = `Restore started — Job ID: ${res.job_id}`;
+			restoreResult = $t('backup.restore.restoreStarted', { id: res.job_id });
 			restoreSuccess = true;
 		} catch (e) {
-			restoreResult = e instanceof Error ? e.message : 'Restore failed';
+			restoreResult = errorMessage(e);
 			restoreSuccess = false;
 		} finally {
 			restoring = false;
@@ -75,40 +77,40 @@
 	<div>
 		<a href="/backup/jobs/{jobId}" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
 			<ArrowLeft class="size-4" />
-			Back to job
+			{$t('backup.restore.backToJob')}
 		</a>
 	</div>
 
 	{#if loading}
-		<p class="text-muted-foreground">Loading...</p>
+		<p class="text-muted-foreground">{$t('backup.loading')}</p>
 	{:else if error}
 		<p class="text-destructive">{error}</p>
 	{:else if status !== 'completed'}
 		<div class="rounded-lg border border-dashed p-12 text-center">
-			<p class="text-muted-foreground">Only completed jobs can be restored</p>
+			<p class="text-muted-foreground">{$t('backup.restore.onlyCompleted')}</p>
 			<a href="/backup/jobs/{jobId}" class="mt-2 inline-block">
-				<Button variant="outline">Back to job</Button>
+				<Button variant="outline">{$t('backup.restore.backToJob')}</Button>
 			</a>
 		</div>
 	{:else}
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Restore Backup</h1>
-			<p class="text-muted-foreground">Job: <span class="font-mono">{jobId}</span></p>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('backup.restore.title')}</h1>
+			<p class="text-muted-foreground">{$t('backup.restore.job')}: <span class="font-mono">{jobId}</span></p>
 		</div>
 
 		<div class="grid gap-6 md:grid-cols-2">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>Job Details</Card.Title>
+					<Card.Title>{$t('backup.restore.jobDetails')}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-3">
 						<div class="rounded-lg border p-3">
-							<p class="text-xs text-muted-foreground">Status</p>
+							<p class="text-xs text-muted-foreground">{$t('backup.restore.status')}</p>
 							<p class="font-medium">{status}</p>
 						</div>
 						<div class="rounded-lg border p-3">
-							<p class="text-xs text-muted-foreground">Volumes</p>
+							<p class="text-xs text-muted-foreground">{$t('backup.restore.volumes')}</p>
 							<p class="font-medium">{volumes.length}</p>
 						</div>
 						<div class="space-y-2">
@@ -126,28 +128,28 @@
 
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>Restore Options</Card.Title>
+					<Card.Title>{$t('backup.restore.restoreOptions')}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
-						<label for="restore-target" class="text-sm font-medium">Target</label>
+						<label for="restore-target" class="text-sm font-medium">{$t('backup.restore.target')}</label>
 						<select
 							id="restore-target"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={selectedTargetId}
 							disabled={restoring}
 						>
-							<option value="">Select target...</option>
-							{#each targets as t (t.id)}
-								<option value={t.id}>{t.name} ({t.provider})</option>
+							<option value="">{$t('backup.restore.selectTarget')}</option>
+							{#each targets as tgt (tgt.id)}
+								<option value={tgt.id}>{tgt.name} ({tgt.provider})</option>
 							{/each}
 						</select>
 					</div>
 
 					<div class="space-y-2">
-						<label for="restore-dest" class="text-sm font-medium">Destination Mountpoint (optional)</label>
+						<label for="restore-dest" class="text-sm font-medium">{$t('backup.restore.destMountpoint')}</label>
 						<Input id="restore-dest" bind:value={destMountpoint} placeholder="/mnt/restore" disabled={restoring} />
-						<p class="text-xs text-muted-foreground">Leave empty to restore to original location</p>
+						<p class="text-xs text-muted-foreground">{$t('backup.restore.destHint')}</p>
 					</div>
 
 					{#if restoreResult}
@@ -162,7 +164,7 @@
 						{:else}
 							<Download class="size-4" />
 						{/if}
-						{restoring ? 'Restoring...' : 'Confirm Restore'}
+						{restoring ? $t('backup.restore.restoring') : $t('backup.restore.confirmRestore')}
 					</Button>
 				</Card.Content>
 			</Card.Root>
