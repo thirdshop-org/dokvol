@@ -79,6 +79,38 @@ func (s *System) GetDockerVolumes() []VolumeDetail {
 	return results
 }
 
+// containersMountingSource returns the names of every container (running or
+// stopped) that has a mount whose Source matches sourcePath. A volume can be
+// shared by more than one container (or a compose project), so migrating it
+// safely means quiescing all of them, not just the application being moved.
+func containersMountingSource(sourcePath string) ([]string, error) {
+	apiClient, err := client.New(client.FromEnv)
+	if err != nil {
+		return nil, fmt.Errorf("docker client: %w", err)
+	}
+	defer apiClient.Close()
+
+	containers, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, fmt.Errorf("list containers: %w", err)
+	}
+
+	var names []string
+	for _, ctr := range containers.Items {
+		for _, mount := range ctr.Mounts {
+			if mount.Source == sourcePath {
+				name := "Unknown"
+				if len(ctr.Names) > 0 {
+					name = ctr.Names[0]
+				}
+				names = append(names, name)
+				break
+			}
+		}
+	}
+	return names, nil
+}
+
 type BasicContainerInfos struct {
 	ID   string
 	Name string

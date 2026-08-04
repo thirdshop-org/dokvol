@@ -82,10 +82,26 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 		)
 	}
 
-	// 1. STOP — Arrêter le conteneur
+	// 1. STOP — Arrêter tous les conteneurs qui montent ce volume. Un même
+	// volume peut être partagé par plusieurs conteneurs (ou un projet
+	// compose) : n'arrêter que l'application migrée laisserait les autres
+	// écrire pendant le rsync.
 	reportProgress(opts, volName, StepStopping, 0, 0)
-	if err := s.stopContainer(app.Name); err != nil {
-		return fmt.Errorf("stop failed: %w", err)
+	writers, err := containersMountingSource(sourcePath)
+	if err != nil {
+		return fmt.Errorf("list containers using volume: %w", err)
+	}
+	if len(writers) == 0 {
+		writers = []string{app.Name}
+	}
+
+	var stopped []string
+	for _, name := range writers {
+		if err := s.stopContainer(name); err != nil {
+			s.startContainers(stopped) // best-effort rollback of what we already stopped
+			return fmt.Errorf("stop failed for container '%s': %w", name, err)
+		}
+		stopped = append(stopped, name)
 	}
 
 	// 2. SYNC — Copier avec rsync
@@ -117,7 +133,7 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	<-progressDone
 
 	if rsyncErr != nil {
-		s.startContainer(app.Name) // rollback
+		s.startContainers(stopped) // rollback
 		return fmt.Errorf("sync failed: %w", rsyncErr)
 	}
 
@@ -130,7 +146,7 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	// 3. VERIFY — Checksum
 	reportProgress(opts, volName, StepVerifying, totalBytes, totalBytes)
 	if err := s.verifyChecksum(sourcePath, destPath); err != nil {
-		s.startContainer(app.Name) // rollback
+		s.startContainers(stopped) // rollback
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
@@ -139,13 +155,13 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	reportProgress(opts, volName, StepRelinking, totalBytes, totalBytes)
 	backupPath, err := s.relink(sourcePath, destPath)
 	if err != nil {
-		s.startContainer(app.Name) // rollback: original data untouched, safe to restart on it
+		s.startContainers(stopped) // rollback: original data untouched, safe to restart on it
 		return fmt.Errorf("relink failed: %w", err)
 	}
 
-	// 5. START — Relancer
+	// 5. START — Relancer tous les conteneurs arrêtés à l'étape 1
 	reportProgress(opts, volName, StepStarting, totalBytes, totalBytes)
-	if err := s.startContainer(app.Name); err != nil {
+	if err := s.startContainers(stopped); err != nil {
 		return fmt.Errorf("start failed: %w (pre-migration data preserved at %s)", err, backupPath)
 	}
 
@@ -424,25 +440,42 @@ func (s *System) relink(sourcePath, destPath string) (backupPath string, err err
 	return backupPath, nil
 }
 
+// containerStopGracePeriod is how long `docker stop` waits after SIGTERM
+// before falling back to SIGKILL. A bare SIGKILL (the previous behavior via
+// `docker kill`) crashes databases and anything else that needs to flush and
+// close on shutdown.
+const containerStopGracePeriod = 30 * time.Second
+
 func (s *System) stopContainer(appName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), containerStopGracePeriod+60*time.Second)
 	defer cancel()
 
-	// docker kill sends SIGKILL immediately (sleep in busybox ignores SIGTERM)
-	killCmd := exec.CommandContext(ctx, "docker", "kill", appName)
-	if _, err := killCmd.CombinedOutput(); err != nil {
-		// container might already be stopped
-	}
-
-	// Wait for container to fully exit
-	waitCmd := exec.CommandContext(ctx, "docker", "wait", appName)
-	out, err := waitCmd.CombinedOutput()
+	// `docker stop` is a no-op (success) on an already-stopped container, so
+	// no need to special-case that like the old kill+wait pair did.
+	cmd := exec.CommandContext(ctx, "docker", "stop", "--time", fmt.Sprintf("%d", int(containerStopGracePeriod.Seconds())), appName)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return NewAPIError(
 			ErrContainerStopFailed,
 			fmt.Sprintf("failed to stop container '%s': %s\n%s", appName, err, out),
 			map[string]any{"container": appName},
 		)
+	}
+	return nil
+}
+
+// startContainers restarts every container in names, continuing past
+// individual failures so a rollback restarts as many writers as possible,
+// and returns an aggregate error describing every one that failed.
+func (s *System) startContainers(names []string) error {
+	var errs []string
+	for _, name := range names {
+		if err := s.startContainer(name); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %s", name, err))
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to start container(s): %s", strings.Join(errs, "; "))
 	}
 	return nil
 }
