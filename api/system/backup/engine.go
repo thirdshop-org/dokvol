@@ -173,6 +173,16 @@ func (e *BackupEngine) runBackupJob(jobID string, target *BackupTarget, configJS
 		destPath := vol.BackupPath
 		sourcePath := vol.SourcePath
 
+		// Exclusive lock on the source directory: a migration could be
+		// relinking this same volume right now, and reading through a
+		// symlink swap mid-rename would produce a corrupt or empty backup.
+		lock, err := system.LockVolume(sourcePath)
+		if err != nil {
+			e.failVolume(jobID, vol.VolumeName, fmt.Sprintf("lock volume: %s", err))
+			allCompleted = false
+			continue
+		}
+
 		cmd := exec.Command("rclone", "copy",
 			"--config", "/dev/stdin",
 			"--progress",
@@ -188,10 +198,12 @@ func (e *BackupEngine) runBackupJob(jobID string, target *BackupTarget, configJS
 		cmd.Stderr = &stderr
 
 		if err := cmd.Run(); err != nil {
+			lock.Unlock()
 			e.failVolume(jobID, vol.VolumeName, fmt.Sprintf("rclone failed: %s\n%s", err, stderr.String()))
 			allCompleted = false
 			continue
 		}
+		lock.Unlock() // copy of the source is done; the rest only touches the backup target
 
 		var size int64
 		sizeCmd := exec.Command("rclone", "size",

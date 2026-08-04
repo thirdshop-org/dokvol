@@ -91,6 +91,22 @@ func NewMigrationManager(queries *db.Queries) *MigrationManager {
 }
 
 func (m *MigrationManager) StartJob(ctx context.Context, appName string, application Application, volumes []ApplicationVolumeOptions) (string, error) {
+	// Single-flight per application: a second migration for the same app
+	// while one is already pending/running would race both against the
+	// same containers and (for a shared volume) the same directories.
+	m.mu.RLock()
+	for _, existing := range m.jobs {
+		if existing.AppName == appName && (existing.Status == JobPending || existing.Status == JobRunning) {
+			m.mu.RUnlock()
+			return "", NewAPIError(
+				ErrMigrationInProgress,
+				fmt.Sprintf("application '%s' already has a migration job in progress (%s)", appName, existing.ID),
+				map[string]any{"application": appName, "job_id": existing.ID},
+			)
+		}
+	}
+	m.mu.RUnlock()
+
 	jobID := uuid.New().String()
 
 	_, err := m.Queries.CreateMigrationJob(ctx, db.CreateMigrationJobParams{

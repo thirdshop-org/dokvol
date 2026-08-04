@@ -98,6 +98,14 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 		)
 	}
 
+	// Verrou exclusif sur ce volume : empêche une seconde migration ou une
+	// sauvegarde de démarrer sur le même répertoire pendant qu'on l'opère.
+	lock, err := LockVolume(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+
 	// 1. STOP — Arrêter tous les conteneurs qui montent ce volume. Un même
 	// volume peut être partagé par plusieurs conteneurs (ou un projet
 	// compose) : n'arrêter que l'application migrée laisserait les autres

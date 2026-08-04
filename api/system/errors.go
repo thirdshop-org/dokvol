@@ -42,6 +42,10 @@ func (e *APIError) HTTPStatus() int {
 		return http.StatusConflict
 	case e.Code == ErrMigrationDiskSpace:
 		return http.StatusConflict
+	case e.Code == ErrMigrationVolumeLocked:
+		return http.StatusConflict
+	case e.Code == ErrMigrationInProgress:
+		return http.StatusConflict
 	case strings.HasPrefix(e.Code, "MIGRATION.VOLUME"):
 		return http.StatusNotFound
 	case strings.HasPrefix(e.Code, "MIGRATION."):
@@ -70,6 +74,8 @@ const (
 	ErrMigrationSyncFailed   = "MIGRATION.SYNC_FAILED"
 	ErrMigrationVerifyFailed = "MIGRATION.VERIFY_FAILED"
 	ErrMigrationRelinkFailed = "MIGRATION.RELINK_FAILED"
+	ErrMigrationVolumeLocked = "MIGRATION.VOLUME_LOCKED"
+	ErrMigrationInProgress   = "MIGRATION.IN_PROGRESS"
 	ErrContainerStopFailed   = "CONTAINER.STOP_FAILED"
 	ErrContainerStartFailed  = "CONTAINER.START_FAILED"
 	ErrContainerTimeout      = "CONTAINER.TIMEOUT"
