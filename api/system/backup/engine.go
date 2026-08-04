@@ -59,9 +59,9 @@ func NewBackupEngine(database *sql.DB) *BackupEngine {
 
 func volumeSubdir(v system.VolumeDetail) string {
 	if v.Name != "" {
-		return v.Name
+		return system.SanitizeSubDir(v.Name)
 	}
-	return strings.TrimLeft(v.Destination, "/")
+	return system.SanitizeSubDir(v.Destination)
 }
 
 func (e *BackupEngine) RunBackup(appName string, targetID string) (string, error) {

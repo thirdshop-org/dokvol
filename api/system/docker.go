@@ -31,9 +31,26 @@ type VolumeDetail struct {
 // For example: /config → config, /movies → movies, /downloads → downloads
 func volumeSubDir(v VolumeDetail) string {
 	if v.Name != "" {
-		return v.Name
+		return SanitizeSubDir(v.Name)
 	}
-	return strings.TrimLeft(v.Destination, "/")
+	return SanitizeSubDir(v.Destination)
+}
+
+// SanitizeSubDir defangs a container-supplied path component (a Docker
+// volume name or a bind-mount destination, both attacker/user controlled)
+// before it's joined into .dokvol/<app>/<subdir> on the host. Without this,
+// a bind mount destination like "/data/../../etc" would TrimLeft down to
+// "data/../../etc" and filepath.Join would happily walk that ".." out of the
+// intended .dokvol folder. Prefixing with "/" before Clean neutralizes any
+// ".." — Go's path cleaning can't walk above that synthetic root — and the
+// leading "/" is then stripped back off. Legitimate nested paths (e.g.
+// "/config/nested" → "config/nested") are preserved.
+func SanitizeSubDir(name string) string {
+	cleaned := strings.TrimPrefix(filepath.Clean("/"+name), "/")
+	if cleaned == "" || cleaned == "." {
+		return "_"
+	}
+	return cleaned
 }
 
 func (s *System) GetDockerVolumes() []VolumeDetail {
