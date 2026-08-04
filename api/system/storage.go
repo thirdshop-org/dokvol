@@ -24,6 +24,13 @@ type MoveStorageOptions struct {
 	ApplicationVolumes      *[]ApplicationVolumeOptions
 	Application             Application
 	OnProgress              ProgressFn
+	// OnBackupPath is called once relink() has moved the pre-migration data
+	// aside, so the caller can persist where it went before the process
+	// continues to the (riskier) container-restart step. Without this,
+	// a crash right after relink leaves no record of where the original
+	// data is, and the boot-time reconciler has nothing to point an
+	// operator at.
+	OnBackupPath func(volumeName, backupPath string)
 }
 
 func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
@@ -167,6 +174,9 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 		s.startContainers(stopped) // rollback: original data untouched, safe to restart on it
 		return fmt.Errorf("relink failed: %w", err)
 	}
+	if opts.OnBackupPath != nil {
+		opts.OnBackupPath(volName, backupPath)
+	}
 
 	// 5. START — Relancer tous les conteneurs arrêtés à l'étape 1
 	reportProgress(opts, volName, StepStarting, totalBytes, totalBytes)
@@ -178,6 +188,11 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	// it safe to reclaim the pre-migration copy.
 	if err := os.RemoveAll(backupPath); err != nil {
 		log.Printf("migration: failed to remove backup '%s' after successful migration: %s", backupPath, err)
+	} else if opts.OnBackupPath != nil {
+		// Clear the persisted backup path now that it no longer points at
+		// anything, so a completed job doesn't leave a dangling reference a
+		// later reconciler run could mistake for recoverable data.
+		opts.OnBackupPath(volName, "")
 	}
 
 	reportProgress(opts, volName, StepCompleted, totalBytes, totalBytes)

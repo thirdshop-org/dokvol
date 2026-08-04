@@ -114,6 +114,7 @@ SELECT
     p.total_bytes,
     p.transferred_bytes,
     p.error_message,
+    p.backup_path,
     p.created_at AS progress_created_at,
     p.updated_at AS progress_updated_at
 FROM migration_job j

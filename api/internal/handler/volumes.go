@@ -32,8 +32,12 @@ type volumeProgressJSON struct {
 	TotalBytes       int64     `json:"total_bytes"`
 	TransferredBytes int64     `json:"transferred_bytes"`
 	Error            string    `json:"error,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	// BackupPath, when set, is where the pre-migration data was moved aside
+	// to and has not yet been reclaimed — e.g. the job was interrupted, or
+	// the container failed to restart on the new location.
+	BackupPath string    `json:"backup_path,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type jobJSON struct {
@@ -55,6 +59,7 @@ func jobToJSON(job *system.Job) jobJSON {
 			TotalBytes:       job.Volumes[i].TotalBytes,
 			TransferredBytes: job.Volumes[i].Transferred,
 			Error:            job.Volumes[i].Error,
+			BackupPath:       job.Volumes[i].BackupPath,
 			CreatedAt:        job.Volumes[i].CreatedAt,
 			UpdatedAt:        job.Volumes[i].UpdatedAt,
 		}

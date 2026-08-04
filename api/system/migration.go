@@ -18,10 +18,14 @@ import (
 type MigrationJobStatus string
 
 const (
-	JobPending   MigrationJobStatus = "pending"
-	JobRunning   MigrationJobStatus = "running"
-	JobCompleted MigrationJobStatus = "completed"
-	JobFailed    MigrationJobStatus = "failed"
+	JobPending     MigrationJobStatus = "pending"
+	JobRunning     MigrationJobStatus = "running"
+	JobCompleted   MigrationJobStatus = "completed"
+	JobFailed      MigrationJobStatus = "failed"
+	// JobInterrupted is set by the boot-time reconciler for any job still
+	// marked "running" at startup — the process died mid-migration and no
+	// goroutine survived to report a real outcome.
+	JobInterrupted MigrationJobStatus = "interrupted"
 )
 
 const (
@@ -33,6 +37,11 @@ const (
 	StepStarting  = "starting"
 	StepCompleted = "completed"
 	StepFailed    = "failed"
+	// StepInterrupted is set by the boot-time reconciler on any volume whose
+	// job died mid-migration. Unlike StepFailed, it does not mean the
+	// operation was seen to fail — it means dokvol restarted before finding
+	// out, and an operator should check BackupPath before assuming anything.
+	StepInterrupted = "interrupted"
 )
 
 type VolumeRow struct {
@@ -47,8 +56,13 @@ type VolumeRow struct {
 	DestPath    string
 	DestDrive   string
 	Error       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// BackupPath is where the pre-migration data was moved aside to by
+	// relink() (see storage.go), non-empty from the moment relinking starts
+	// until it's reclaimed after a confirmed-healthy restart. Surfaced here
+	// so an interrupted job still points at recoverable data.
+	BackupPath string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type Job struct {
@@ -165,6 +179,7 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 				DestPath:    job.Volumes[i].DestPath,
 				DestDrive:   job.Volumes[i].DestDrive,
 				Error:       job.Volumes[i].Error,
+				BackupPath:  job.Volumes[i].BackupPath,
 				CreatedAt:   job.Volumes[i].CreatedAt,
 				UpdatedAt:   job.Volumes[i].UpdatedAt,
 			}
@@ -213,6 +228,7 @@ func (m *MigrationManager) GetJob(ctx context.Context, id string) (*Job, error) 
 			DestPath:    p.DestPath,
 			DestDrive:   p.DestDrive,
 			Error:       p.ErrorMessage.String,
+			BackupPath:  p.BackupPath.String,
 			CreatedAt: func() time.Time {
 				if p.CreatedAt.Valid {
 					return p.CreatedAt.Time
@@ -272,6 +288,7 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 					DestPath:    mem.Volumes[i].DestPath,
 					DestDrive:   mem.Volumes[i].DestDrive,
 					Error:       mem.Volumes[i].Error,
+					BackupPath:  mem.Volumes[i].BackupPath,
 					CreatedAt:   mem.Volumes[i].CreatedAt,
 					UpdatedAt:   mem.Volumes[i].UpdatedAt,
 				}
@@ -312,6 +329,7 @@ func (m *MigrationManager) ListJobs(ctx context.Context) ([]*Job, error) {
 				DestPath:    r.DestPath,
 				DestDrive:   r.DestDrive,
 				Error:       r.ErrorMessage.String,
+				BackupPath:  r.BackupPath.String,
 				CreatedAt: func() time.Time {
 					if r.ProgressCreatedAt.Valid {
 						return r.ProgressCreatedAt.Time
@@ -397,6 +415,36 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 				ID:               vol.ID,
 			}); err != nil {
 				log.Printf("failed to update bytes for volume %s in job %s: %s", volumeName, jobID, err)
+			}
+		},
+		OnBackupPath: func(volumeName, backupPath string) {
+			m.mu.RLock()
+			job, ok := m.jobs[jobID]
+			m.mu.RUnlock()
+			if !ok {
+				return
+			}
+
+			var vol *VolumeRow
+			for i := range job.Volumes {
+				if job.Volumes[i].VolumeName == volumeName {
+					vol = &job.Volumes[i]
+					break
+				}
+			}
+			if vol == nil {
+				return
+			}
+
+			vol.mu.Lock()
+			vol.BackupPath = backupPath
+			vol.mu.Unlock()
+
+			if err := m.Queries.UpdateVolumeProgressBackupPath(ctx, db.UpdateVolumeProgressBackupPathParams{
+				BackupPath: sql.NullString{String: backupPath, Valid: backupPath != ""},
+				ID:         vol.ID,
+			}); err != nil {
+				log.Printf("failed to persist backup path for volume %s in job %s: %s", volumeName, jobID, err)
 			}
 		},
 	}

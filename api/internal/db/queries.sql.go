@@ -765,6 +765,7 @@ SELECT
     p.total_bytes,
     p.transferred_bytes,
     p.error_message,
+    p.backup_path,
     p.created_at AS progress_created_at,
     p.updated_at AS progress_updated_at
 FROM migration_job j
@@ -788,6 +789,7 @@ type ListJobsWithProgressRow struct {
 	TotalBytes        int64          `json:"total_bytes"`
 	TransferredBytes  int64          `json:"transferred_bytes"`
 	ErrorMessage      sql.NullString `json:"error_message"`
+	BackupPath        sql.NullString `json:"backup_path"`
 	ProgressCreatedAt sql.NullTime   `json:"progress_created_at"`
 	ProgressUpdatedAt sql.NullTime   `json:"progress_updated_at"`
 }
@@ -817,6 +819,7 @@ func (q *Queries) ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgr
 			&i.TotalBytes,
 			&i.TransferredBytes,
 			&i.ErrorMessage,
+			&i.BackupPath,
 			&i.ProgressCreatedAt,
 			&i.ProgressUpdatedAt,
 		); err != nil {
