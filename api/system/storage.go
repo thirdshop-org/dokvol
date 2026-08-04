@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -133,17 +134,25 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
-	// 4. RELINK — Remplacer sourcePath par un symlink
+	// 4. RELINK — Remplacer sourcePath par un symlink (l'original est déplacé
+	// vers backupPath, pas supprimé — voir relink())
 	reportProgress(opts, volName, StepRelinking, totalBytes, totalBytes)
-	if err := s.relink(sourcePath, destPath); err != nil {
-		s.startContainer(app.Name) // rollback
+	backupPath, err := s.relink(sourcePath, destPath)
+	if err != nil {
+		s.startContainer(app.Name) // rollback: original data untouched, safe to restart on it
 		return fmt.Errorf("relink failed: %w", err)
 	}
 
 	// 5. START — Relancer
 	reportProgress(opts, volName, StepStarting, totalBytes, totalBytes)
 	if err := s.startContainer(app.Name); err != nil {
-		return fmt.Errorf("start failed: %w", err)
+		return fmt.Errorf("start failed: %w (pre-migration data preserved at %s)", err, backupPath)
+	}
+
+	// Only now that the container is confirmed healthy on the new location is
+	// it safe to reclaim the pre-migration copy.
+	if err := os.RemoveAll(backupPath); err != nil {
+		log.Printf("migration: failed to remove backup '%s' after successful migration: %s", backupPath, err)
 	}
 
 	reportProgress(opts, volName, StepCompleted, totalBytes, totalBytes)
@@ -367,20 +376,42 @@ func (s *System) validateMigration(app *Application, volumes *[]ApplicationVolum
 	return nil
 }
 
-func (s *System) relink(sourcePath, destPath string) error {
+const relinkBackupSuffix = ".dokvol-bak"
 
-	// Supprimer l'ancien dossier source
-	if err := os.RemoveAll(sourcePath); err != nil {
-		return NewAPIError(
+// relink swaps sourcePath for a symlink to destPath. Instead of deleting the
+// original directory outright, it is renamed aside (same filesystem, atomic)
+// so that a crash between the rename and the symlink creation — or a failed
+// container start right after — never destroys data. The caller is
+// responsible for removing the returned backup path once the migrated
+// container has been confirmed healthy.
+func (s *System) relink(sourcePath, destPath string) (backupPath string, err error) {
+
+	backupPath = sourcePath + relinkBackupSuffix
+
+	// Déplacer l'ancien dossier source de côté (rename est atomique sur un même FS)
+	if err := os.Rename(sourcePath, backupPath); err != nil {
+		return "", NewAPIError(
 			ErrMigrationRelinkFailed,
-			fmt.Sprintf("failed to remove source: %s", err),
+			fmt.Sprintf("failed to move source aside: %s", err),
 			map[string]any{"path": sourcePath},
 		)
 	}
 
 	// Créer le symlink : sourcePath → destPath
 	if err := os.Symlink(destPath, sourcePath); err != nil {
-		return NewAPIError(
+		// Revert: restore the original directory so the volume isn't left empty
+		if revertErr := os.Rename(backupPath, sourcePath); revertErr != nil {
+			return "", NewAPIError(
+				ErrMigrationRelinkFailed,
+				fmt.Sprintf("failed to create symlink (%s) and failed to restore original data: %s (original data left at %s)", err, revertErr, backupPath),
+				map[string]any{
+					"source": sourcePath,
+					"target": destPath,
+					"backup": backupPath,
+				},
+			)
+		}
+		return "", NewAPIError(
 			ErrMigrationRelinkFailed,
 			fmt.Sprintf("failed to create symlink: %s", err),
 			map[string]any{
@@ -390,7 +421,7 @@ func (s *System) relink(sourcePath, destPath string) error {
 		)
 	}
 
-	return nil
+	return backupPath, nil
 }
 
 func (s *System) stopContainer(appName string) error {
