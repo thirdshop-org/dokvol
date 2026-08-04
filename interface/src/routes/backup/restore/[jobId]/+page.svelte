@@ -9,6 +9,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { LoaderCircle, ArrowLeft, Download } from '@lucide/svelte';
 	import { feedbackBoxClass } from '$lib/utils/status';
+	import { formatBytes } from '$lib/utils/format';
 
 	let jobId = $state('');
 	let status = $state('');
@@ -67,12 +68,7 @@
 		}
 	}
 
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-	}
+
 </script>
 
 <div class="space-y-6">

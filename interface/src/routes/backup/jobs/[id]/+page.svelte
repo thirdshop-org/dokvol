@@ -6,6 +6,7 @@
 	import type { BackupVolumeProgress } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle, ArrowLeft, RotateCcw, Download } from '@lucide/svelte';
+	import { formatBytes } from '$lib/utils/format';
 
 	let jobId = $state('');
 	let status = $state('');
@@ -52,13 +53,6 @@
 		if (h > 0) return `${h}h ${m % 60}m ${s % 60}s`;
 		if (m > 0) return `${m}m ${s % 60}s`;
 		return `${s}s`;
-	}
-
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
 	}
 
 	function progressPct(vol: BackupVolumeProgress): number {

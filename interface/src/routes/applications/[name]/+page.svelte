@@ -11,6 +11,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import FileExplorer from '$lib/components/file-explorer.svelte';
+	import { formatBytes } from '$lib/utils/format';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -34,13 +35,6 @@
 
 	const appName = $derived($page.params.name);
 	const fullAppName = $derived('/' + appName);
-
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-	}
 
 	function formatDuration(ms: number): string {
 		if (ms <= 0) return '—';

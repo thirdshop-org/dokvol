@@ -11,6 +11,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
+	import { formatBytes } from '$lib/utils/format';
 
 	let apps = $state<ApplicationVolumes[]>([]);
 	let loading = $state(true);
@@ -108,13 +109,6 @@
 			confirmAction = null;
 			confirmOpen = false;
 		}
-	}
-
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
 	}
 
 	$effect(() => {

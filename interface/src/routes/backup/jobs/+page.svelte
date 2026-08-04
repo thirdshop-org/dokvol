@@ -4,6 +4,7 @@
 	import type { BackupJob } from '$lib/types';
 	import { LoaderCircle } from '@lucide/svelte';
 	import { statusBadgeClass } from '$lib/utils/status';
+	import { formatBytes } from '$lib/utils/format';
 
 	let jobs = $state<BackupJob[]>([]);
 	let total = $state(0);
@@ -46,12 +47,7 @@
 		return `${s}s`;
 	}
 
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-	}
+
 </script>
 
 <div class="space-y-6">

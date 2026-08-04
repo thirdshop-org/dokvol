@@ -9,6 +9,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { LoaderCircle, Plug, Trash2, ArrowLeft, Play, Database } from '@lucide/svelte';
 	import { feedbackBoxClass } from '$lib/utils/status';
+	import { formatBytes } from '$lib/utils/format';
 
 	let target = $state<BackupTarget | null>(null);
 	let loading = $state(true);
@@ -106,12 +107,7 @@
 		if (target && selectedApp) loadBackups();
 	});
 
-	function formatBytes(bytes: number): string {
-		if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-	}
+
 </script>
 
 <div class="space-y-6">
