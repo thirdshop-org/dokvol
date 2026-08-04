@@ -213,6 +213,7 @@ const en = {
 		stats_interval_seconds_hint: "How often stats are collected (in seconds).",
 		stats_retention_days: "Stats retention",
 		stats_retention_days_hint: "How many days stats are kept.",
+		save: "Save",
 	},
 	stats: {
 		title: "Statistics",

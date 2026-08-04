@@ -213,6 +213,7 @@ const fr = {
 		stats_interval_seconds_hint: "Fréquence de collecte des statistiques (en secondes).",
 		stats_retention_days: "Rétention des stats",
 		stats_retention_days_hint: "Nombre de jours de conservation des statistiques.",
+		save: "Enregistrer",
 	},
 	stats: {
 		title: "Statistiques",

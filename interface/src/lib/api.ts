@@ -148,6 +148,13 @@ export function getPreferences(): Promise<PreferencesResponse> {
 	return fetchJson<PreferencesResponse>('/preferences');
 }
 
+export function updatePreference(key: string, value: string): Promise<{ key: string; value: string }> {
+	return fetchJson<{ key: string; value: string }>('/preferences', {
+		method: 'PUT',
+		body: JSON.stringify({ key, value }),
+	});
+}
+
 export function getStatsApplication(name: string, from?: string, to?: string, signal?: AbortSignal): Promise<StatsApplication[]> {
 	const params = new URLSearchParams({ name });
 	if (from) params.set('from', from);
