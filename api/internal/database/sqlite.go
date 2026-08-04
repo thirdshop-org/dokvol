@@ -22,7 +22,9 @@ type Database struct {
 func Init() *Database {
 	dbPath := os.Getenv("DOKVOL_DB_PATH")
 	if dbPath == "" {
-		dbPath = "./dokvol.db"
+		// /etc/dokvol is the persistent bind mount (see install.sh); the container's
+		// own WORKDIR lives in the writable layer and is wiped on `docker rm`.
+		dbPath = "/etc/dokvol/dokvol.db"
 	}
 	conn, err := sql.Open("sqlite3", dbPath)
 	if err != nil {

@@ -67,6 +67,7 @@ case "$ACTION" in
         -v /var/lib/docker/volumes:/var/lib/docker/volumes:rslave \
         -v /mnt:/mnt:rslave \
         -v /etc/dokvol:/etc/dokvol \
+        -e DOKVOL_DB_PATH=/etc/dokvol/dokvol.db \
         -p ${PORT}:8080 \
         "${DOKVOL_IMAGE}:${VERSION}"
 
@@ -94,6 +95,7 @@ case "$ACTION" in
         -v /var/lib/docker/volumes:/var/lib/docker/volumes:rslave \
         -v /mnt:/mnt:rslave \
         -v /etc/dokvol:/etc/dokvol \
+        -e DOKVOL_DB_PATH=/etc/dokvol/dokvol.db \
         -p ${PORT}:8080 \
         "${DOKVOL_IMAGE}:${VERSION}"
 
