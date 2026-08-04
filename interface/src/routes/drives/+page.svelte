@@ -135,7 +135,7 @@
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-center">
-								<a href="/stats/drives?mountpoint={encodeURIComponent(drive.mountpoint)}" class="text-xs text-muted-foreground hover:text-foreground underline">{$t('stats.evolution')}</a>
+								<a href="/stats?tab=drives&mountpoint={encodeURIComponent(drive.mountpoint)}" class="text-xs text-muted-foreground hover:text-foreground underline">{$t('stats.evolution')}</a>
 							</td>
 						</tr>
 					{/each}

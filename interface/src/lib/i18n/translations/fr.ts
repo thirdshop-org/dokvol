@@ -239,6 +239,13 @@ const fr = {
 		migrationBytes: "Données déplacées",
 		migrationDuration: "Temps total",
 		migrationApps: "Apps migrées",
+		tabs: {
+			overview: "Vue d'ensemble",
+			volumes: "Volume",
+			drives: "Disque",
+			applications: "Application",
+		},
+		selectFromOverview: "Sélectionnez un volume, un disque ou une application depuis l'onglet Vue d'ensemble.",
 	},
 	auth: {
 		login: "Connexion",

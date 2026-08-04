@@ -227,7 +227,7 @@
 							<td class="px-4 py-3 font-mono text-xs">{row.Source}</td>
 							<td class="px-4 py-3 font-mono text-xs">{row.Destination}</td>
 							<td class="px-4 py-3 text-center">
-								<a href="/stats/volumes?name={encodeURIComponent(row.Name || row.Source)}"
+								<a href="/stats?tab=volumes&name={encodeURIComponent(row.Name || row.Source)}"
 								   class="text-xs text-muted-foreground hover:text-foreground underline">
 								   {$t('stats.evolution')}
 								</a>

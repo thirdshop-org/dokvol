@@ -1,56 +1,43 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
+	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import { t } from "$lib/i18n";
 	import * as Card from "$lib/components/ui/card/index.js";
+	import * as Tabs from "$lib/components/ui/tabs/index.js";
 	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import StatsChart from "$lib/components/charts/StatsChart.svelte";
 	import Sparkline from "$lib/components/charts/Sparkline.svelte";
+	import DateRangePicker from "$lib/components/date-range-picker.svelte";
 	import { getDrives, getStatsDrive, getStatsVolume, getStatsApplication, getVolumes, getApplications, getStatsMigration } from "$lib/api";
 	import { AreaChart, HardDrive, Layers, Box, History } from "@lucide/svelte";
 	import type { MigrationStats } from "$lib/types";
+	import { rangeDays, toISO, dateRange, type RangeKey } from "$lib/utils/dates";
+	import { formatBytes } from "$lib/utils/format";
 
-	type RangeKey = "7d" | "30d" | "90d" | "all";
+	type TabKey = "overview" | "volumes" | "drives" | "applications";
 
-	let selectedRange = $state<RangeKey>("7d");
+	let tab = $state<TabKey>((($page.url.searchParams.get("tab") as TabKey) || "overview"));
+
+	// Overview tab state
+	let overviewRange = $state<RangeKey>("7d");
 	let driveCharts = $state<{ mountpoint: string; device: string; data: { date: Date; value: number }[] }[]>([]);
 	let volumeCharts = $state<{ name: string; app: string; total: number; data: { date: Date; value: number }[] }[]>([]);
 	let appCharts = $state<{ name: string; data: { date: Date; value: number }[] }[]>([]);
 	let migrationStats = $state<MigrationStats | null>(null);
-
 	let drivesLoading = $state(true);
 	let volumesLoading = $state(true);
 	let appsLoading = $state(true);
 	let migrationsLoading = $state(true);
+	let overviewAbort: AbortController | null = null;
 
-	let abortController: AbortController | null = null;
-
-	function rangeDays(key: RangeKey): number {
-		if (key === "7d") return 7;
-		if (key === "30d") return 30;
-		if (key === "90d") return 90;
-		return 365;
-	}
-
-	const dateRange = $derived.by(() => {
-		const to = new Date();
-		const from = new Date();
-		from.setDate(from.getDate() - rangeDays(selectedRange));
-		return [from, to] as [Date, Date];
-	});
-
-	function toISO(daysAgo: number): string {
-		const d = new Date();
-		d.setDate(d.getDate() - daysAgo);
-		return d.toISOString();
-	}
-
-	async function loadData() {
-		abortController?.abort();
+	async function loadOverview() {
+		overviewAbort?.abort();
 		const ac = new AbortController();
-		abortController = ac;
+		overviewAbort = ac;
 		const signal = ac.signal;
 
-		const from = toISO(rangeDays(selectedRange));
+		const from = toISO(rangeDays(overviewRange));
 
 		migrationsLoading = true;
 		drivesLoading = driveCharts.length === 0;
@@ -137,11 +124,122 @@
 		}
 	}
 
+	function goToDetail(nextTab: "volumes" | "drives" | "applications", param: string, value: string) {
+		const url = new URL(window.location.href);
+		url.searchParams.set("tab", nextTab);
+		url.searchParams.set(param, value);
+		goto(url.pathname + url.search, { noScroll: true, keepFocus: true });
+	}
+
+	// Detail tabs (volumes / drives / applications) share the same shape:
+	// a date-range picker, a small stat summary, and one StatsChart, keyed
+	// by a query param instead of a route param.
+	let detailName = $derived($page.url.searchParams.get("name") ?? "");
+	let detailMountpoint = $derived($page.url.searchParams.get("mountpoint") ?? "");
+	let detailRange = $state<RangeKey>("7d");
+
+	let volumeData = $state<{ date: Date; value: number }[]>([]);
+	let volumeCurrentSize = $state(0);
+	let volumeLoading = $state(true);
+	let volumeAbort: AbortController | null = null;
+
+	async function loadVolumeDetail() {
+		if (!detailName) return;
+		volumeAbort?.abort();
+		const ac = new AbortController();
+		volumeAbort = ac;
+		volumeLoading = volumeData.length === 0;
+		try {
+			const rows = await getStatsVolume(detailName, toISO(rangeDays(detailRange)), undefined, ac.signal);
+			if (ac.signal.aborted) return;
+			volumeData = rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes }));
+			if (rows.length > 0) volumeCurrentSize = rows[rows.length - 1].total_bytes;
+		} catch {
+			// aborted requests are expected, ignore
+		} finally {
+			if (!ac.signal.aborted) volumeLoading = false;
+		}
+	}
+
+	let driveData = $state<{ date: Date; value: number }[]>([]);
+	let driveUsed = $state(0);
+	let driveFree = $state(0);
+	let driveTotal = $state(0);
+	let driveLoading = $state(true);
+	let driveAbort: AbortController | null = null;
+
+	async function loadDriveDetail() {
+		if (!detailMountpoint) return;
+		driveAbort?.abort();
+		const ac = new AbortController();
+		driveAbort = ac;
+		driveLoading = driveData.length === 0;
+		try {
+			const rows = await getStatsDrive(detailMountpoint, toISO(rangeDays(detailRange)), undefined, ac.signal);
+			if (ac.signal.aborted) return;
+			driveData = rows.map(r => ({ date: new Date(r.captured_at), value: r.used_bytes }));
+			if (rows.length > 0) {
+				const last = rows[rows.length - 1];
+				driveUsed = last.used_bytes;
+				driveFree = last.free_bytes;
+				driveTotal = last.total_bytes;
+			}
+		} catch {
+			// aborted requests are expected, ignore
+		} finally {
+			if (!ac.signal.aborted) driveLoading = false;
+		}
+	}
+
+	let appData = $state<{ date: Date; value: number }[]>([]);
+	let appCurrentSize = $state(0);
+	let appLoading = $state(true);
+	let appAbort: AbortController | null = null;
+
+	async function loadAppDetail() {
+		if (!detailName) return;
+		appAbort?.abort();
+		const ac = new AbortController();
+		appAbort = ac;
+		appLoading = appData.length === 0;
+		try {
+			const rows = await getStatsApplication(detailName, toISO(rangeDays(detailRange)), undefined, ac.signal);
+			if (ac.signal.aborted) return;
+			appData = rows.map(r => ({ date: new Date(r.captured_at), value: r.total_bytes ?? 0 }));
+			if (rows.length > 0) appCurrentSize = rows[rows.length - 1].total_bytes ?? 0;
+		} catch {
+			// aborted requests are expected, ignore
+		} finally {
+			if (!ac.signal.aborted) appLoading = false;
+		}
+	}
+
+	function selectTab(next: TabKey) {
+		tab = next;
+		const url = new URL(window.location.href);
+		url.searchParams.set("tab", next);
+		goto(url.pathname + url.search, { noScroll: true, keepFocus: true });
+	}
+
+	$effect(() => {
+		if (tab === "volumes" && detailName) loadVolumeDetail();
+	});
+	$effect(() => {
+		if (tab === "drives" && detailMountpoint) loadDriveDetail();
+	});
+	$effect(() => {
+		if (tab === "applications" && detailName) loadAppDetail();
+	});
+
 	onMount(() => {
-		loadData();
-		return () => {
-			abortController?.abort();
-		};
+		if (tab === "overview") loadOverview();
+	});
+
+	onDestroy(() => {
+		overviewAbort?.abort();
+		volumeAbort?.abort();
+		driveAbort?.abort();
+		appAbort?.abort();
 	});
 
 	function formatDuration(ms: number): string {
@@ -155,195 +253,292 @@
 		const min = m % 60;
 		return `${h}h ${min}m`;
 	}
-
-	function formatBytes(v: number): string {
-		if (v === 0) return "0 B";
-		const units = ["B", "KB", "MB", "GB", "TB"];
-		const i = Math.floor(Math.log(v) / Math.log(1024));
-		return `${(v / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-	}
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-start justify-between">
-		<div>
-			<h1 class="text-2xl font-bold tracking-tight">{$t("stats.title")}</h1>
-			<p class="text-muted-foreground">{$t("stats.description")}</p>
-		</div>
-		<div class="flex">
-			{#each ["7d", "30d", "90d", "all"] as range (range)}
-				<button
-					data-active={selectedRange === range}
-					class="data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-4 py-3 text-start even:border-s sm:border-s sm:border-t-0 sm:px-6 sm:py-4"
-					onclick={() => { selectedRange = range as RangeKey; loadData(); }}
-				>
-					<span class="text-xs text-muted-foreground">{$t(`stats.range.${range}`)}</span>
-				</button>
-			{/each}
-		</div>
+	<div>
+		<h1 class="text-2xl font-bold tracking-tight">{$t("stats.title")}</h1>
+		<p class="text-muted-foreground">{$t("stats.description")}</p>
 	</div>
 
-	<!-- Migration stats -->
-	{#if migrationStats || migrationsLoading}
-		<div class="space-y-4">
-			<h2 class="text-lg font-semibold flex items-center gap-2">
-				<History class="size-5" /> {$t("stats.migrations")}
-			</h2>
-			<div class="grid gap-4 sm:grid-cols-3">
-				{#if migrationsLoading && !migrationStats}
-					{#each [1, 2, 3] as _}
-						<Card.Root>
-							<Card.Header class="pb-2">
-								<Skeleton class="h-8 w-20 mb-1" />
-								<Skeleton class="h-4 w-32" />
-							</Card.Header>
-						</Card.Root>
-					{/each}
-				{:else if migrationStats}
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold">{migrationStats.total_count}</Card.Title>
-							<Card.Description>{$t("stats.migrationTotal")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold text-emerald-600">{migrationStats.completed_count}</Card.Title>
-							<Card.Description>{$t("stats.migrationCompleted")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold text-red-600">{migrationStats.failed_count}</Card.Title>
-							<Card.Description>{$t("stats.migrationFailed")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
-				{/if}
+	<Tabs.Root value={tab} onValueChange={(v) => selectTab(v as TabKey)}>
+		<Tabs.List>
+			<Tabs.Trigger value="overview">{$t("stats.tabs.overview")}</Tabs.Trigger>
+			<Tabs.Trigger value="volumes" disabled={!detailName}>{$t("stats.tabs.volumes")}</Tabs.Trigger>
+			<Tabs.Trigger value="drives" disabled={!detailMountpoint}>{$t("stats.tabs.drives")}</Tabs.Trigger>
+			<Tabs.Trigger value="applications" disabled={!detailName}>{$t("stats.tabs.applications")}</Tabs.Trigger>
+		</Tabs.List>
+
+		<Tabs.Content value="overview" class="space-y-6 pt-4">
+			<div class="flex items-start justify-end">
+				<DateRangePicker bind:value={overviewRange} onchange={loadOverview} />
 			</div>
-			{#if !migrationsLoading && migrationStats}
-				<div class="grid gap-4 sm:grid-cols-3">
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold">{formatBytes(migrationStats.total_bytes_moved)}</Card.Title>
-							<Card.Description>{$t("stats.migrationBytes")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold">{formatDuration(migrationStats.total_duration_ms)}</Card.Title>
-							<Card.Description>{$t("stats.migrationDuration")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
-					<Card.Root>
-						<Card.Header class="pb-2">
-							<Card.Title class="text-2xl font-bold">{migrationStats.unique_apps}</Card.Title>
-							<Card.Description>{$t("stats.migrationApps")}</Card.Description>
-						</Card.Header>
-					</Card.Root>
+
+			{#if migrationStats || migrationsLoading}
+				<div class="space-y-4">
+					<h2 class="text-lg font-semibold flex items-center gap-2">
+						<History class="size-5" /> {$t("stats.migrations")}
+					</h2>
+					<div class="grid gap-4 sm:grid-cols-3">
+						{#if migrationsLoading && !migrationStats}
+							{#each [1, 2, 3] as _}
+								<Card.Root>
+									<Card.Header class="pb-2">
+										<Skeleton class="h-8 w-20 mb-1" />
+										<Skeleton class="h-4 w-32" />
+									</Card.Header>
+								</Card.Root>
+							{/each}
+						{:else if migrationStats}
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold">{migrationStats.total_count}</Card.Title>
+									<Card.Description>{$t("stats.migrationTotal")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold text-emerald-600">{migrationStats.completed_count}</Card.Title>
+									<Card.Description>{$t("stats.migrationCompleted")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold text-red-600">{migrationStats.failed_count}</Card.Title>
+									<Card.Description>{$t("stats.migrationFailed")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+						{/if}
+					</div>
+					{#if !migrationsLoading && migrationStats}
+						<div class="grid gap-4 sm:grid-cols-3">
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold">{formatBytes(migrationStats.total_bytes_moved)}</Card.Title>
+									<Card.Description>{$t("stats.migrationBytes")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold">{formatDuration(migrationStats.total_duration_ms)}</Card.Title>
+									<Card.Description>{$t("stats.migrationDuration")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+							<Card.Root>
+								<Card.Header class="pb-2">
+									<Card.Title class="text-2xl font-bold">{migrationStats.unique_apps}</Card.Title>
+									<Card.Description>{$t("stats.migrationApps")}</Card.Description>
+								</Card.Header>
+							</Card.Root>
+						</div>
+					{/if}
 				</div>
 			{/if}
-		</div>
-	{/if}
 
-	<!-- Drives section -->
-	<div class="space-y-4">
-		<h2 class="text-lg font-semibold flex items-center gap-2">
-			<HardDrive class="size-5" /> {$t("stats.drives")}
-		</h2>
-		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-			{#if drivesLoading && driveCharts.length === 0}
-				{#each [1, 2, 3] as _}
-					<Card.Root>
-						<Card.Content>
-							<Skeleton class="w-full" style="height: 180px;" />
-						</Card.Content>
-					</Card.Root>
-				{/each}
-			{:else}
-				{#each driveCharts as chart}
-					<a href="/stats/drives?mountpoint={encodeURIComponent(chart.mountpoint)}" class="block">
-						<StatsChart
-							title={chart.mountpoint}
-							description={chart.device}
-							data={chart.data}
-							height="180px"
-							xDomain={dateRange}
-							formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-							formatY={(v: number) => formatBytes(v)}
-						/>
-					</a>
-				{/each}
-			{/if}
-		</div>
-	</div>
+			<div class="space-y-4">
+				<h2 class="text-lg font-semibold flex items-center gap-2">
+					<HardDrive class="size-5" /> {$t("stats.drives")}
+				</h2>
+				<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{#if drivesLoading && driveCharts.length === 0}
+						{#each [1, 2, 3] as _}
+							<Card.Root>
+								<Card.Content>
+									<Skeleton class="w-full" style="height: 180px;" />
+								</Card.Content>
+							</Card.Root>
+						{/each}
+					{:else}
+						{#each driveCharts as chart}
+							<button class="block text-left" onclick={() => goToDetail("drives", "mountpoint", chart.mountpoint)}>
+								<StatsChart
+									title={chart.mountpoint}
+									description={chart.device}
+									data={chart.data}
+									height="180px"
+									xDomain={dateRange(overviewRange)}
+									formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+									formatY={(v: number) => formatBytes(v)}
+								/>
+							</button>
+						{/each}
+					{/if}
+				</div>
+			</div>
 
-	<!-- Volumes section -->
-	<div class="space-y-4">
-		<h2 class="text-lg font-semibold flex items-center gap-2">
-			<Layers class="size-5" /> {$t("stats.topVolumes")}
-		</h2>
-		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-			{#if volumesLoading && volumeCharts.length === 0}
-				{#each [1, 2, 3] as _}
-					<Card.Root>
-						<Card.Header>
-							<Skeleton class="h-5 w-40 mb-2" />
-							<Skeleton class="h-4 w-28" />
-						</Card.Header>
-						<Card.Content>
-							<Skeleton class="w-full" style="height: 40px;" />
-						</Card.Content>
-					</Card.Root>
-				{/each}
-			{:else}
-				{#each volumeCharts as chart}
-					<a href="/stats/volumes?name={encodeURIComponent(chart.name)}" class="block">
-						<Card.Root>
-							<Card.Header>
-								<Card.Title class="truncate">{chart.name}</Card.Title>
-								<Card.Description>
-									{chart.app} — {formatBytes(chart.total)}
-								</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<Sparkline data={chart.data.map(d => ({ value: d.value }))} width={200} height={40} color="var(--chart-2)" />
-							</Card.Content>
-						</Card.Root>
-					</a>
-				{/each}
-			{/if}
-		</div>
-	</div>
+			<div class="space-y-4">
+				<h2 class="text-lg font-semibold flex items-center gap-2">
+					<Layers class="size-5" /> {$t("stats.topVolumes")}
+				</h2>
+				<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{#if volumesLoading && volumeCharts.length === 0}
+						{#each [1, 2, 3] as _}
+							<Card.Root>
+								<Card.Header>
+									<Skeleton class="h-5 w-40 mb-2" />
+									<Skeleton class="h-4 w-28" />
+								</Card.Header>
+								<Card.Content>
+									<Skeleton class="w-full" style="height: 40px;" />
+								</Card.Content>
+							</Card.Root>
+						{/each}
+					{:else}
+						{#each volumeCharts as chart}
+							<button class="block text-left w-full" onclick={() => goToDetail("volumes", "name", chart.name)}>
+								<Card.Root>
+									<Card.Header>
+										<Card.Title class="truncate">{chart.name}</Card.Title>
+										<Card.Description>
+											{chart.app} — {formatBytes(chart.total)}
+										</Card.Description>
+									</Card.Header>
+									<Card.Content>
+										<Sparkline data={chart.data.map(d => ({ value: d.value }))} width={200} height={40} color="var(--chart-2)" />
+									</Card.Content>
+								</Card.Root>
+							</button>
+						{/each}
+					{/if}
+				</div>
+			</div>
 
-	<!-- Applications section -->
-	<div class="space-y-4">
-		<h2 class="text-lg font-semibold flex items-center gap-2">
-			<Box class="size-5" /> {$t("stats.applications")}
-		</h2>
-		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-			{#if appsLoading && appCharts.length === 0}
-				{#each [1, 2, 3] as _}
-					<Card.Root>
-						<Card.Content>
-							<Skeleton class="w-full" style="height: 180px;" />
-						</Card.Content>
-					</Card.Root>
-				{/each}
+			<div class="space-y-4">
+				<h2 class="text-lg font-semibold flex items-center gap-2">
+					<Box class="size-5" /> {$t("stats.applications")}
+				</h2>
+				<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{#if appsLoading && appCharts.length === 0}
+						{#each [1, 2, 3] as _}
+							<Card.Root>
+								<Card.Content>
+									<Skeleton class="w-full" style="height: 180px;" />
+								</Card.Content>
+							</Card.Root>
+						{/each}
+					{:else}
+						{#each appCharts as chart}
+							<button class="block text-left" onclick={() => goToDetail("applications", "name", chart.name)}>
+								<StatsChart
+									title={chart.name}
+									data={chart.data}
+									height="180px"
+									color="var(--chart-3)"
+									xDomain={dateRange(overviewRange)}
+									formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+									formatY={(v: number) => formatBytes(v)}
+								/>
+							</button>
+						{/each}
+					{/if}
+				</div>
+			</div>
+		</Tabs.Content>
+
+		<Tabs.Content value="volumes" class="space-y-6 pt-4">
+			{#if !detailName}
+				<p class="text-muted-foreground">{$t("stats.selectFromOverview")}</p>
 			{:else}
-				{#each appCharts as chart}
-					<a href="/stats/applications?name={encodeURIComponent(chart.name)}" class="block">
-						<StatsChart
-							title={chart.name}
-							data={chart.data}
-							height="180px"
-							color="var(--chart-3)"
-							xDomain={dateRange}
-							formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-							formatY={(v: number) => formatBytes(v)}
-						/>
-					</a>
-				{/each}
+				<div class="flex items-start justify-between">
+					<h2 class="text-xl font-semibold">{detailName}</h2>
+					<DateRangePicker bind:value={detailRange} onchange={loadVolumeDetail} />
+				</div>
+				{#if volumeLoading && volumeData.length === 0}
+					<div class="rounded-lg border bg-card p-4">
+						<Skeleton class="h-4 w-24 mb-2" />
+						<Skeleton class="h-8 w-32" />
+					</div>
+				{:else if volumeCurrentSize > 0}
+					<div class="rounded-lg border bg-card p-4">
+						<p class="text-sm text-muted-foreground">{$t("stats.storage")}</p>
+						<p class="text-2xl font-bold">{formatBytes(volumeCurrentSize)}</p>
+					</div>
+				{/if}
+				<StatsChart
+					title={detailName}
+					data={volumeData}
+					height="350px"
+					color="var(--chart-2)"
+					xDomain={dateRange(detailRange)}
+					formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+					formatY={(v: number) => formatBytes(v)}
+				/>
 			{/if}
-		</div>
-	</div>
+		</Tabs.Content>
+
+		<Tabs.Content value="drives" class="space-y-6 pt-4">
+			{#if !detailMountpoint}
+				<p class="text-muted-foreground">{$t("stats.selectFromOverview")}</p>
+			{:else}
+				<div class="flex items-start justify-between">
+					<h2 class="text-xl font-semibold">{detailMountpoint}</h2>
+					<DateRangePicker bind:value={detailRange} onchange={loadDriveDetail} />
+				</div>
+				{#if driveLoading && driveData.length === 0}
+					<div class="grid gap-4 sm:grid-cols-3">
+						{#each [1, 2, 3] as _}
+							<div class="rounded-lg border bg-card p-4">
+								<Skeleton class="h-4 w-16 mb-2" />
+								<Skeleton class="h-8 w-24" />
+							</div>
+						{/each}
+					</div>
+				{:else if driveTotal > 0}
+					<div class="grid gap-4 sm:grid-cols-3">
+						<div class="rounded-lg border bg-card p-4">
+							<p class="text-sm text-muted-foreground">{$t("drives.table.total")}</p>
+							<p class="text-2xl font-bold">{formatBytes(driveTotal)}</p>
+						</div>
+						<div class="rounded-lg border bg-card p-4">
+							<p class="text-sm text-muted-foreground">{$t("drives.table.free")}</p>
+							<p class="text-2xl font-bold">{formatBytes(driveFree)}</p>
+						</div>
+						<div class="rounded-lg border bg-card p-4">
+							<p class="text-sm text-muted-foreground">{$t("drives.table.usage")}</p>
+							<p class="text-2xl font-bold">{driveTotal > 0 ? ((driveUsed / driveTotal) * 100).toFixed(1) : "0"}%</p>
+						</div>
+					</div>
+				{/if}
+				<StatsChart
+					title={detailMountpoint}
+					data={driveData}
+					height="350px"
+					xDomain={dateRange(detailRange)}
+					formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+					formatY={(v: number) => formatBytes(v)}
+				/>
+			{/if}
+		</Tabs.Content>
+
+		<Tabs.Content value="applications" class="space-y-6 pt-4">
+			{#if !detailName}
+				<p class="text-muted-foreground">{$t("stats.selectFromOverview")}</p>
+			{:else}
+				<div class="flex items-start justify-between">
+					<h2 class="text-xl font-semibold">{detailName}</h2>
+					<DateRangePicker bind:value={detailRange} onchange={loadAppDetail} />
+				</div>
+				{#if appLoading && appData.length === 0}
+					<div class="rounded-lg border bg-card p-4">
+						<Skeleton class="h-4 w-24 mb-2" />
+						<Skeleton class="h-8 w-32" />
+					</div>
+				{:else if appCurrentSize > 0}
+					<div class="rounded-lg border bg-card p-4">
+						<p class="text-sm text-muted-foreground">{$t("stats.storage")}</p>
+						<p class="text-2xl font-bold">{formatBytes(appCurrentSize)}</p>
+					</div>
+				{/if}
+				<StatsChart
+					title={detailName}
+					data={appData}
+					height="350px"
+					color="var(--chart-3)"
+					xDomain={dateRange(detailRange)}
+					formatX={(v: Date) => v.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+					formatY={(v: number) => formatBytes(v)}
+				/>
+			{/if}
+		</Tabs.Content>
+	</Tabs.Root>
 </div>

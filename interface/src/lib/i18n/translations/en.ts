@@ -239,6 +239,13 @@ const en = {
 		migrationBytes: "Data moved",
 		migrationDuration: "Total time",
 		migrationApps: "Apps migrated",
+		tabs: {
+			overview: "Overview",
+			volumes: "Volume",
+			drives: "Drive",
+			applications: "Application",
+		},
+		selectFromOverview: "Select a volume, drive, or application from the Overview tab.",
 	},
 	auth: {
 		login: "Login",
