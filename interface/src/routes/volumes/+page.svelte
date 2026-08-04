@@ -230,7 +230,6 @@
 									class="inline-flex items-center justify-center size-7 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
 									aria-label={$t('fileExplorer.browse')}
 								>
-								dsqd
 									<Search class="size-3.5" />
 								</button>
 							</td>

@@ -8,6 +8,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { LoaderCircle, ArrowLeft, Download } from '@lucide/svelte';
+	import { feedbackBoxClass } from '$lib/utils/status';
 
 	let jobId = $state('');
 	let status = $state('');
@@ -133,8 +134,9 @@
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Target</label>
+						<label for="restore-target" class="text-sm font-medium">Target</label>
 						<select
+							id="restore-target"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={selectedTargetId}
 							disabled={restoring}
@@ -147,13 +149,13 @@
 					</div>
 
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Destination Mountpoint (optional)</label>
-						<Input bind:value={destMountpoint} placeholder="/mnt/restore" disabled={restoring} />
+						<label for="restore-dest" class="text-sm font-medium">Destination Mountpoint (optional)</label>
+						<Input id="restore-dest" bind:value={destMountpoint} placeholder="/mnt/restore" disabled={restoring} />
 						<p class="text-xs text-muted-foreground">Leave empty to restore to original location</p>
 					</div>
 
 					{#if restoreResult}
-						<div class="rounded-lg border p-3 text-sm" class:border-green-500:text-green-700:dark:text-green-400={restoreSuccess} class:border-red-500:text-destructive={!restoreSuccess}>
+						<div class="rounded-lg border p-3 text-sm {feedbackBoxClass(restoreSuccess)}">
 							{restoreResult}
 						</div>
 					{/if}

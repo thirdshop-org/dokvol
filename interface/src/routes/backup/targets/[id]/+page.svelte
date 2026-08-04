@@ -8,6 +8,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { LoaderCircle, Plug, Trash2, ArrowLeft, Play, Database } from '@lucide/svelte';
+	import { feedbackBoxClass } from '$lib/utils/status';
 
 	let target = $state<BackupTarget | null>(null);
 	let loading = $state(true);
@@ -148,7 +149,7 @@
 		</div>
 
 		{#if testMsg}
-			<div class="rounded-lg border p-3 text-sm" class:border-green-500:text-green-700:dark:text-green-400={testSuccess} class:border-red-500:text-destructive={!testSuccess}>
+			<div class="rounded-lg border p-3 text-sm {feedbackBoxClass(testSuccess)}">
 				{testMsg}
 			</div>
 		{/if}
@@ -160,8 +161,9 @@
 				</Card.Header>
 				<Card.Content class="space-y-3">
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Application</label>
+						<label for="trigger-app" class="text-sm font-medium">Application</label>
 						<select
+							id="trigger-app"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={selectedApp}
 						>

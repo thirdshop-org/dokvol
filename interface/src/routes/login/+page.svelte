@@ -16,7 +16,6 @@
 
 	async function handleLogin() {
 		error = null;
-		console.log(email,password)
 		if (!email || !password) {
 			error = $t('auth.requiredFields');
 			return;

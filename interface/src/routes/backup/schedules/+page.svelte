@@ -107,8 +107,9 @@
 				<h3 class="text-sm font-semibold">Create Schedule</h3>
 				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Application</label>
+						<label for="sched-app" class="text-sm font-medium">Application</label>
 						<select
+							id="sched-app"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={newApp}
 							disabled={creating}
@@ -120,8 +121,9 @@
 						</select>
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Target</label>
+						<label for="sched-target" class="text-sm font-medium">Target</label>
 						<select
+							id="sched-target"
 							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 							bind:value={newTarget}
 							disabled={creating}
@@ -133,12 +135,12 @@
 						</select>
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Cron Expression</label>
-						<Input bind:value={newCron} placeholder="0 2 * * *" disabled={creating} />
+						<label for="sched-cron" class="text-sm font-medium">Cron Expression</label>
+						<Input id="sched-cron" bind:value={newCron} placeholder="0 2 * * *" disabled={creating} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Retention (days)</label>
-						<Input bind:value={newRetention} type="number" min="1" disabled={creating} />
+						<label for="sched-retention" class="text-sm font-medium">Retention (days)</label>
+						<Input id="sched-retention" bind:value={newRetention} type="number" min="1" disabled={creating} />
 					</div>
 				</div>
 				{#if createError}
@@ -192,6 +194,7 @@
 									class:bg-input={!sched.enabled}
 									role="switch"
 									aria-checked={sched.enabled}
+									aria-label={sched.enabled ? 'Disable schedule' : 'Enable schedule'}
 								>
 									<span
 										class="pointer-events-none block size-4 rounded-full bg-white shadow-lg ring-0 transition-transform"

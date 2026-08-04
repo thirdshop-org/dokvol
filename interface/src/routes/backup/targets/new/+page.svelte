@@ -56,13 +56,14 @@
 	<Card.Root class="max-w-xl">
 		<Card.Content class="space-y-4 pt-6">
 			<div class="space-y-2">
-				<label class="text-sm font-medium">Name</label>
-				<Input bind:value={name} placeholder="My backup target" disabled={submitting} />
+				<label for="target-name" class="text-sm font-medium">Name</label>
+				<Input id="target-name" bind:value={name} placeholder="My backup target" disabled={submitting} />
 			</div>
 
 			<div class="space-y-2">
-				<label class="text-sm font-medium">Provider</label>
+				<label for="target-provider" class="text-sm font-medium">Provider</label>
 				<select
+					id="target-provider"
 					class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					bind:value={provider}
 					disabled={submitting}
@@ -77,24 +78,24 @@
 				<div class="space-y-3 rounded-lg border p-4">
 					<h3 class="text-sm font-semibold">S3 Configuration</h3>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Endpoint</label>
-						<Input bind:value={s3Config.endpoint} placeholder="https://s3.amazonaws.com" disabled={submitting} />
+						<label for="s3-endpoint" class="text-sm font-medium">Endpoint</label>
+						<Input id="s3-endpoint" bind:value={s3Config.endpoint} placeholder="https://s3.amazonaws.com" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Bucket</label>
-						<Input bind:value={s3Config.bucket} placeholder="my-bucket" disabled={submitting} />
+						<label for="s3-bucket" class="text-sm font-medium">Bucket</label>
+						<Input id="s3-bucket" bind:value={s3Config.bucket} placeholder="my-bucket" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Region</label>
-						<Input bind:value={s3Config.region} placeholder="us-east-1" disabled={submitting} />
+						<label for="s3-region" class="text-sm font-medium">Region</label>
+						<Input id="s3-region" bind:value={s3Config.region} placeholder="us-east-1" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Access Key</label>
-						<Input bind:value={s3Config.access_key} placeholder="AKIA..." disabled={submitting} />
+						<label for="s3-access-key" class="text-sm font-medium">Access Key</label>
+						<Input id="s3-access-key" bind:value={s3Config.access_key} placeholder="AKIA..." disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Secret Key</label>
-						<Input bind:value={s3Config.secret_key} type="password" placeholder="••••••••" disabled={submitting} />
+						<label for="s3-secret-key" class="text-sm font-medium">Secret Key</label>
+						<Input id="s3-secret-key" bind:value={s3Config.secret_key} type="password" placeholder="••••••••" disabled={submitting} />
 					</div>
 					<label class="flex items-center gap-2 text-sm">
 						<input type="checkbox" bind:checked={s3Config.path_style} class="accent-primary" disabled={submitting} />
@@ -105,32 +106,32 @@
 				<div class="space-y-3 rounded-lg border p-4">
 					<h3 class="text-sm font-semibold">SFTP Configuration</h3>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Host</label>
-						<Input bind:value={sftpConfig.host} placeholder="example.com" disabled={submitting} />
+						<label for="sftp-host" class="text-sm font-medium">Host</label>
+						<Input id="sftp-host" bind:value={sftpConfig.host} placeholder="example.com" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Port</label>
-						<Input bind:value={sftpConfig.port} type="number" disabled={submitting} />
+						<label for="sftp-port" class="text-sm font-medium">Port</label>
+						<Input id="sftp-port" bind:value={sftpConfig.port} type="number" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Username</label>
-						<Input bind:value={sftpConfig.user} placeholder="username" disabled={submitting} />
+						<label for="sftp-user" class="text-sm font-medium">Username</label>
+						<Input id="sftp-user" bind:value={sftpConfig.user} placeholder="username" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Password</label>
-						<Input bind:value={sftpConfig.password} type="password" placeholder="••••••••" disabled={submitting} />
+						<label for="sftp-password" class="text-sm font-medium">Password</label>
+						<Input id="sftp-password" bind:value={sftpConfig.password} type="password" placeholder="••••••••" disabled={submitting} />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Base Path</label>
-						<Input bind:value={sftpConfig.base_path} placeholder="/backups" disabled={submitting} />
+						<label for="sftp-base-path" class="text-sm font-medium">Base Path</label>
+						<Input id="sftp-base-path" bind:value={sftpConfig.base_path} placeholder="/backups" disabled={submitting} />
 					</div>
 				</div>
 			{:else if provider === 'local'}
 				<div class="space-y-3 rounded-lg border p-4">
 					<h3 class="text-sm font-semibold">Local Configuration</h3>
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Path</label>
-						<Input bind:value={localConfig.path} placeholder="/mnt/backup" disabled={submitting} />
+						<label for="local-path" class="text-sm font-medium">Path</label>
+						<Input id="local-path" bind:value={localConfig.path} placeholder="/mnt/backup" disabled={submitting} />
 					</div>
 				</div>
 			{/if}

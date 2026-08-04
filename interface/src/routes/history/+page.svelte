@@ -154,7 +154,7 @@
 	{/if}
 
 	<div class="flex flex-wrap gap-3 items-end">
-		<div class="relative" role="combobox" aria-expanded={filterAppOpen}>
+		<div class="relative" role="combobox" aria-expanded={filterAppOpen} aria-controls="history-app-filter-list">
 			<Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				bind:value={filterApp}
@@ -165,7 +165,7 @@
 				onblur={() => setTimeout(() => { filterAppOpen = false; filterAppFocused = false; }, 150)}
 			/>
 			{#if filterAppOpen && appNames.length > 0}
-				<div class="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-background shadow-lg max-h-48 overflow-y-auto">
+				<div id="history-app-filter-list" class="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-background shadow-lg max-h-48 overflow-y-auto">
 					{#each appNames.filter(n => !filterApp || n.toLowerCase().includes(filterApp.toLowerCase())) as name}
 						<button
 							class="w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
@@ -209,7 +209,13 @@
 				</Table.Header>
 				<Table.Body>
 					{#each entries as entry (entry.id)}
-						<Table.Row class="cursor-pointer hover:bg-muted/30" onclick={() => openDetail(entry.job_id, entry.volume_name)}>
+						<Table.Row
+							class="cursor-pointer hover:bg-muted/30"
+							role="button"
+							tabindex={0}
+							onclick={() => openDetail(entry.job_id, entry.volume_name)}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(entry.job_id, entry.volume_name); } }}
+						>
 							<Table.Cell class="font-medium">{entry.app_name}</Table.Cell>
 							<Table.Cell class="font-mono text-xs">{entry.volume_name}</Table.Cell>
 							<Table.Cell class="hidden md:table-cell font-mono text-xs text-muted-foreground max-w-40 truncate" title={entry.source_path}>

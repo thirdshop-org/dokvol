@@ -3,6 +3,7 @@
 	import { getBackupJobs } from '$lib/api';
 	import type { BackupJob } from '$lib/types';
 	import { LoaderCircle } from '@lucide/svelte';
+	import { statusBadgeClass } from '$lib/utils/status';
 
 	let jobs = $state<BackupJob[]>([]);
 	let total = $state(0);
@@ -94,12 +95,7 @@
 						<tr class="border-b last:border-0 hover:bg-muted/30 cursor-pointer" onclick={() => window.location.href = `/backup/jobs/${job.id}`}>
 							<td class="px-4 py-3 font-medium">{job.app_name}</td>
 							<td class="px-4 py-3">
-								<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-									class:bg-green-100:text-green-800:dark:bg-green-900:dark:text-green-100={job.status === 'completed'}
-									class:bg-red-100:text-red-800:dark:bg-red-900:dark:text-red-100={job.status === 'failed'}
-									class:bg-blue-100:text-blue-800:dark:bg-blue-900:dark:text-blue-100={job.status === 'running'}
-									class:bg-gray-100:text-gray-800:dark:bg-gray-800:dark:text-gray-100={job.status === 'pending'}
-								>
+								<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {statusBadgeClass(job.status)}">
 									{#if job.status === 'running' || job.status === 'pending'}
 										<LoaderCircle class="size-3 animate-spin" />
 									{/if}
