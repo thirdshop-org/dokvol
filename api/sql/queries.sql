@@ -97,6 +97,29 @@ UPDATE migration_volume_progress SET step = 'interrupted', error_message = ?, up
 -- name: ListRunningMigrationJobs :many
 SELECT * FROM migration_job WHERE status = 'running';
 
+-- name: GetVolumeProgress :one
+SELECT * FROM migration_volume_progress WHERE id = ?;
+
+-- name: ListVolumeProgressWithBackupPath :many
+SELECT
+    p.id,
+    p.job_id,
+    p.volume_name,
+    p.source_path,
+    p.dest_path,
+    p.dest_drive,
+    p.step,
+    p.backup_path,
+    p.updated_at,
+    j.app_name
+FROM migration_volume_progress p
+JOIN migration_job j ON j.id = p.job_id
+WHERE p.backup_path IS NOT NULL AND p.backup_path != ''
+ORDER BY p.updated_at DESC;
+
+-- name: MarkVolumeProgressRestored :exec
+UPDATE migration_volume_progress SET step = 'restored', backup_path = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
 -- name: ListJobsWithProgress :many
 SELECT
     j.id AS job_id,

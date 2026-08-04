@@ -42,6 +42,10 @@ const (
 	// operation was seen to fail — it means dokvol restarted before finding
 	// out, and an operator should check BackupPath before assuming anything.
 	StepInterrupted = "interrupted"
+	// StepRestored is set once an operator undoes a migration via the trash
+	// API (RestoreTrashEntry) — the pre-migration backup was moved back
+	// into place and the symlink removed.
+	StepRestored = "restored"
 )
 
 type VolumeRow struct {

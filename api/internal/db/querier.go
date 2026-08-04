@@ -43,6 +43,7 @@ type Querier interface {
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetVolume(ctx context.Context, id int64) (Volume, error)
 	GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, error)
+	GetVolumeProgress(ctx context.Context, id int64) (MigrationVolumeProgress, error)
 	ListDistinctAppNames(ctx context.Context) ([]string, error)
 	ListDrives(ctx context.Context) ([]Drive, error)
 	ListJobsWithProgress(ctx context.Context) ([]ListJobsWithProgressRow, error)
@@ -59,8 +60,10 @@ type Querier interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
 	ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error)
+	ListVolumeProgressWithBackupPath(ctx context.Context) ([]ListVolumeProgressWithBackupPathRow, error)
 	ListVolumes(ctx context.Context) ([]Volume, error)
 	MarkVolumeProgressInterrupted(ctx context.Context, arg MarkVolumeProgressInterruptedParams) error
+	MarkVolumeProgressRestored(ctx context.Context, id int64) error
 	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateVolumeProgressBackupPath(ctx context.Context, arg UpdateVolumeProgressBackupPathParams) error

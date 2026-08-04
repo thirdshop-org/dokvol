@@ -685,6 +685,31 @@ func (q *Queries) GetVolumeDrive(ctx context.Context, id int64) (VolumeDrive, er
 	return i, err
 }
 
+const getVolumeProgress = `-- name: GetVolumeProgress :one
+SELECT id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, backup_path, created_at, updated_at FROM migration_volume_progress WHERE id = ?
+`
+
+func (q *Queries) GetVolumeProgress(ctx context.Context, id int64) (MigrationVolumeProgress, error) {
+	row := q.db.QueryRowContext(ctx, getVolumeProgress, id)
+	var i MigrationVolumeProgress
+	err := row.Scan(
+		&i.ID,
+		&i.JobID,
+		&i.VolumeName,
+		&i.SourcePath,
+		&i.DestPath,
+		&i.DestDrive,
+		&i.Step,
+		&i.TotalBytes,
+		&i.TransferredBytes,
+		&i.ErrorMessage,
+		&i.BackupPath,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listDistinctAppNames = `-- name: ListDistinctAppNames :many
 SELECT DISTINCT app_name FROM migration_log ORDER BY app_name
 `
@@ -1423,6 +1448,71 @@ func (q *Queries) ListVolumeProgressByJob(ctx context.Context, jobID string) ([]
 	return items, nil
 }
 
+const listVolumeProgressWithBackupPath = `-- name: ListVolumeProgressWithBackupPath :many
+SELECT
+    p.id,
+    p.job_id,
+    p.volume_name,
+    p.source_path,
+    p.dest_path,
+    p.dest_drive,
+    p.step,
+    p.backup_path,
+    p.updated_at,
+    j.app_name
+FROM migration_volume_progress p
+JOIN migration_job j ON j.id = p.job_id
+WHERE p.backup_path IS NOT NULL AND p.backup_path != ''
+ORDER BY p.updated_at DESC
+`
+
+type ListVolumeProgressWithBackupPathRow struct {
+	ID         int64          `json:"id"`
+	JobID      string         `json:"job_id"`
+	VolumeName string         `json:"volume_name"`
+	SourcePath string         `json:"source_path"`
+	DestPath   string         `json:"dest_path"`
+	DestDrive  string         `json:"dest_drive"`
+	Step       string         `json:"step"`
+	BackupPath sql.NullString `json:"backup_path"`
+	UpdatedAt  sql.NullTime   `json:"updated_at"`
+	AppName    string         `json:"app_name"`
+}
+
+func (q *Queries) ListVolumeProgressWithBackupPath(ctx context.Context) ([]ListVolumeProgressWithBackupPathRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVolumeProgressWithBackupPath)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListVolumeProgressWithBackupPathRow
+	for rows.Next() {
+		var i ListVolumeProgressWithBackupPathRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.VolumeName,
+			&i.SourcePath,
+			&i.DestPath,
+			&i.DestDrive,
+			&i.Step,
+			&i.BackupPath,
+			&i.UpdatedAt,
+			&i.AppName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVolumes = `-- name: ListVolumes :many
 SELECT id, container_name, type, source, destination, created_at FROM volume ORDER BY container_name
 `
@@ -1468,6 +1558,15 @@ type MarkVolumeProgressInterruptedParams struct {
 
 func (q *Queries) MarkVolumeProgressInterrupted(ctx context.Context, arg MarkVolumeProgressInterruptedParams) error {
 	_, err := q.db.ExecContext(ctx, markVolumeProgressInterrupted, arg.ErrorMessage, arg.ID)
+	return err
+}
+
+const markVolumeProgressRestored = `-- name: MarkVolumeProgressRestored :exec
+UPDATE migration_volume_progress SET step = 'restored', backup_path = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+func (q *Queries) MarkVolumeProgressRestored(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markVolumeProgressRestored, id)
 	return err
 }
 

@@ -131,6 +131,10 @@ var serverCmd = &cobra.Command{
 			apiProtected.POST("/volumes/browse", handler.BrowseVolume)
 			apiProtected.POST("/volumes/read-file", handler.ReadVolumeFile)
 
+			apiProtected.GET("/volumes/trash", handler.ListTrash)
+			apiProtected.POST("/volumes/trash/:id/restore", handler.RestoreTrash)
+			apiProtected.DELETE("/volumes/trash/:id", handler.PurgeTrash)
+
 			apiProtected.GET("/preferences", handler.GetPreferences)
 			apiProtected.PUT("/preferences", handler.UpdatePreference)
 
