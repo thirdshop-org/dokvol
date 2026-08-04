@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"strconv"
 	"time"
 
 	"dokvol/api/internal/auth"
@@ -58,7 +59,55 @@ func userToResponse(user db.User) authUserResponse {
 	}
 }
 
-func Register(c *gin.Context) {
+// createAccount validates and inserts a new user with the given
+// passwordChangeRequired flag, shared by the admin-only CreateUser handler.
+func createAccount(ctx context.Context, req registerRequest, passwordChangeRequired int64) (db.User, *gin.H, int) {
+	existing, err := DB.GetUserByEmail(ctx, sql.NullString{String: req.Email, Valid: true})
+	if err == nil && existing.ID != 0 {
+		return db.User{}, &gin.H{
+			"error_code": "AUTH.EMAIL_EXISTS",
+			"message":    "Email already registered",
+		}, http.StatusConflict
+	}
+
+	existing, err = DB.GetUserByUsername(ctx, req.Username)
+	if err == nil && existing.ID != 0 {
+		return db.User{}, &gin.H{
+			"error_code": "AUTH.USERNAME_EXISTS",
+			"message":    "Username already taken",
+		}, http.StatusConflict
+	}
+
+	hash, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return db.User{}, &gin.H{
+			"error_code": "INTERNAL_ERROR",
+			"message":    "Failed to hash password",
+		}, http.StatusInternalServerError
+	}
+
+	user, err := DB.CreateUser(ctx, db.CreateUserParams{
+		Email:                  sql.NullString{String: req.Email, Valid: req.Email != ""},
+		Username:               req.Username,
+		PasswordHash:           hash,
+		Role:                   "user",
+		PasswordChangeRequired: passwordChangeRequired,
+	})
+	if err != nil {
+		return db.User{}, &gin.H{
+			"error_code": "INTERNAL_ERROR",
+			"message":    "Failed to create user",
+		}, http.StatusInternalServerError
+	}
+
+	return user, nil, 0
+}
+
+// CreateUser is admin-only (see AdminRequired middleware): DokVol manages
+// Docker volumes with host-level privilege, so account creation is not
+// self-service. The admin sets a temporary password; PasswordChangeRequired
+// forces the new user to set their own on first login.
+func CreateUser(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -69,85 +118,36 @@ func Register(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-
-	existing, err := DB.GetUserByEmail(ctx, sql.NullString{String: req.Email, Valid: true})
-	if err == nil && existing.ID != 0 {
-		c.JSON(http.StatusConflict, gin.H{
-			"error_code": "AUTH.EMAIL_EXISTS",
-			"message":    "Email already registered",
-		})
+	user, errBody, status := createAccount(ctx, req, 1)
+	if errBody != nil {
+		c.JSON(status, *errBody)
 		return
 	}
 
-	existing, err = DB.GetUserByUsername(ctx, req.Username)
-	if err == nil && existing.ID != 0 {
-		c.JSON(http.StatusConflict, gin.H{
-			"error_code": "AUTH.USERNAME_EXISTS",
-			"message":    "Username already taken",
-		})
-		return
-	}
+	c.JSON(http.StatusCreated, userToResponse(user))
+}
 
-	hash, err := auth.HashPassword(req.Password)
+// DeleteUser is admin-only.
+func DeleteUser(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error_code": "AUTH.VALIDATION_ERROR",
+			"message":    "invalid user id",
+		})
+		return
+	}
+
+	ctx := context.Background()
+	if err := DB.DeleteUser(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error_code": "INTERNAL_ERROR",
-			"message":    "Failed to hash password",
+			"message":    "Failed to delete user",
 		})
 		return
 	}
 
-	user, err := DB.CreateUser(ctx, db.CreateUserParams{
-		Email:                sql.NullString{String: req.Email, Valid: req.Email != ""},
-		Username:             req.Username,
-		PasswordHash:         hash,
-		Role:                 "user",
-		PasswordChangeRequired: 0,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error_code": "INTERNAL_ERROR",
-			"message":    "Failed to create user",
-		})
-		return
-	}
-
-	accessToken, err := auth.GenerateAccessToken(user.ID, user.Username, user.Role)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error_code": "INTERNAL_ERROR",
-			"message":    "Failed to generate token",
-		})
-		return
-	}
-
-	refreshToken, expiresAt, err := auth.GenerateRefreshToken()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error_code": "INTERNAL_ERROR",
-			"message":    "Failed to generate refresh token",
-		})
-		return
-	}
-
-	_, err = DB.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
-		UserID:    user.ID,
-		Token:     refreshToken,
-		ExpiresAt: expiresAt,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error_code": "INTERNAL_ERROR",
-			"message":    "Failed to store refresh token",
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, authResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User:         userToResponse(user),
-	})
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
 func Login(c *gin.Context) {

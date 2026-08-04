@@ -29,6 +29,7 @@ type Querier interface {
 	DeleteOldStatsDrive(ctx context.Context, capturedAt time.Time) error
 	DeleteOldStatsVolume(ctx context.Context, capturedAt time.Time) error
 	DeleteRefreshToken(ctx context.Context, token string) error
+	DeleteUser(ctx context.Context, id int64) error
 	DeleteUserRefreshTokens(ctx context.Context, userID int64) error
 	DeleteVolume(ctx context.Context, id int64) error
 	DeleteVolumeDrive(ctx context.Context, id int64) error

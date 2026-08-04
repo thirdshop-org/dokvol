@@ -248,6 +248,9 @@ SELECT * FROM users WHERE username = ?;
 -- name: ListUsers :many
 SELECT * FROM users ORDER BY username;
 
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = ?;
+
 -- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = ?, password_change_required = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 

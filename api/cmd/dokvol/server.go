@@ -103,7 +103,6 @@ var serverCmd = &cobra.Command{
 			apiPublic.GET("/health", handler.GetSystemHealth)
 			apiPublic.GET("/version", handler.GetVersion)
 			apiPublic.POST("/auth/login", handler.Login)
-			apiPublic.POST("/auth/register", handler.Register)
 			apiPublic.POST("/auth/refresh", handler.RefreshToken)
 		}
 
@@ -115,6 +114,8 @@ var serverCmd = &cobra.Command{
 			apiProtected.POST("/auth/change-password", handler.ChangePassword)
 
 			apiProtected.GET("/auth/users", middleware.AdminRequired(), handler.ListUsers)
+			apiProtected.POST("/auth/users", middleware.AdminRequired(), handler.CreateUser)
+			apiProtected.DELETE("/auth/users/:id", middleware.AdminRequired(), handler.DeleteUser)
 
 			apiProtected.GET("/applications", handler.GetApplications)
 			apiProtected.POST("/applications/:name/stop", handler.StopApplication)

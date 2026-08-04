@@ -422,6 +422,15 @@ func (q *Queries) DeleteRefreshToken(ctx context.Context, token string) error {
 	return err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = ?
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	return err
+}
+
 const deleteUserRefreshTokens = `-- name: DeleteUserRefreshTokens :exec
 DELETE FROM refresh_tokens WHERE user_id = ?
 `
