@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,22 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/shirou/gopsutil/v4/disk"
 )
+
+// isSourceAccessible reports whether a mount's Source (the host-side path
+// reported by the Docker API) is actually visible inside DokVol's own
+// container. DokVol only bind-mounts /var/lib/docker/volumes and /mnt from
+// the host (see install.sh) — a bind mount elsewhere (e.g. /srv/appdata) is
+// real to the Docker daemon but invisible here, so treating it as
+// migratable would have dirSize/rsync silently operate on nothing (or a
+// coincidentally-existing but unrelated directory) inside DokVol's own root
+// filesystem instead of the actual data.
+func isSourceAccessible(source string) bool {
+	if source == "" {
+		return false
+	}
+	_, err := os.Stat(source)
+	return err == nil
+}
 
 type VolumeDetail struct {
 	ContainerName       string     `json:"ContainerName"`
@@ -86,7 +103,7 @@ func (s *System) GetDockerVolumes() ([]VolumeDetail, error) {
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
-				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs",
+				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs" && isSourceAccessible(mount.Source),
 			}
 
 			results = append(results, detail)
@@ -203,7 +220,7 @@ func GetDockerVolumesByContainers() ([]ApplicationVolumes, error) {
 				Type:          string(mount.Type),
 				Source:        mount.Source,
 				Destination:   mount.Destination,
-				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs",
+				IsMigratable:  mount.Source != "" && string(mount.Type) != "tmpfs" && isSourceAccessible(mount.Source),
 			}
 
 			volumesDetails = append(volumesDetails, detail)
