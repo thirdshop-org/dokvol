@@ -613,8 +613,11 @@ func (s *System) verifyChecksum(sourcePath, destPath string) error {
 			return err
 		}
 
-		// Ignorer les dossiers
-		if info.IsDir() {
+		// Ne comparer que les fichiers réguliers : les dossiers sont récursés
+		// séparément, et les symlinks cassés / FIFOs / sockets unix (ex:
+		// .s.PGSQL.5432, mysqld.sock) ne peuvent pas être hashés — os.Open
+		// bloque indéfiniment sur une FIFO sans lecteur, ce qui figeait le job.
+		if !info.Mode().IsRegular() {
 			return nil
 		}
 
