@@ -79,7 +79,10 @@ func (e *BackupEngine) RunBackup(appName string, targetID string) (string, error
 	}
 
 	drives := system.GetDrives()
-	apps := system.GetApplicationsDetails(drives)
+	apps, err := system.GetApplicationsDetails(drives)
+	if err != nil {
+		return "", fmt.Errorf("list applications: %w", err)
+	}
 
 	var app *system.Application
 	for i := range apps {

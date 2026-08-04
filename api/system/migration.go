@@ -348,9 +348,10 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 	m.mu.Unlock()
 
 	drives := GetDrives()
+	apps, appsErr := GetApplicationsDetails(drives)
 	s := System{
 		Drives:       drives,
-		Applications: GetApplicationsDetails(drives),
+		Applications: apps,
 	}
 
 	startedAt := time.Now()
@@ -402,7 +403,12 @@ func (m *MigrationManager) runJob(ctx context.Context, jobID string, app Applica
 
 	s.docker = newDockerClient()
 
-	err := s.MoveApplicationStorage(opts)
+	var err error
+	if appsErr != nil {
+		err = fmt.Errorf("list applications: %w", appsErr)
+	} else {
+		err = s.MoveApplicationStorage(opts)
+	}
 	completedAt = time.Now()
 
 	status := string(JobCompleted)

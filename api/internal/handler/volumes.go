@@ -71,7 +71,15 @@ func jobToJSON(job *system.Job) jobJSON {
 }
 
 func GetVolumes(c *gin.Context) {
-	apps := system.GetDockerVolumesByContainers()
+	apps, err := system.GetDockerVolumesByContainers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, system.NewAPIError(
+			"INTERNAL_ERROR",
+			fmt.Sprintf("failed to list volumes: %s", err),
+			nil,
+		))
+		return
+	}
 	if apps == nil {
 		c.JSON(http.StatusOK, []interface{}{})
 		return

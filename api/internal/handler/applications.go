@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -57,7 +58,15 @@ func RestartApplication(c *gin.Context) {
 }
 
 func GetApplications(c *gin.Context) {
-	apps := system.GetDockerVolumesByContainers()
+	apps, err := system.GetDockerVolumesByContainers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, system.NewAPIError(
+			"INTERNAL_ERROR",
+			fmt.Sprintf("failed to list applications: %s", err),
+			nil,
+		))
+		return
+	}
 	if apps == nil {
 		c.JSON(http.StatusOK, []interface{}{})
 		return

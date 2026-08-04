@@ -37,9 +37,18 @@ func New() (*System, error) {
 
 	drives := GetDrives()
 
+	apps, err := GetApplicationsDetails(drives)
+	if err != nil {
+		return nil, NewAPIError(
+			ErrSystemNotFound,
+			fmt.Sprintf("failed to list applications: %s", err),
+			nil,
+		)
+	}
+
 	return &System{
 		Drives:       drives,
-		Applications: GetApplicationsDetails(drives),
+		Applications: apps,
 		docker:       docker,
 	}, nil
 }

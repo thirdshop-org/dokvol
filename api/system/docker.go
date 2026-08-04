@@ -53,18 +53,18 @@ func SanitizeSubDir(name string) string {
 	return cleaned
 }
 
-func (s *System) GetDockerVolumes() []VolumeDetail {
+func (s *System) GetDockerVolumes() ([]VolumeDetail, error) {
 	fmt.Println("🔎 Scan des volumes Docker en cours...")
 
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("docker client: %w", err)
 	}
 	defer apiClient.Close()
 
 	containers, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{All: true})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("list containers: %w", err)
 	}
 
 	var results []VolumeDetail
@@ -93,7 +93,7 @@ func (s *System) GetDockerVolumes() []VolumeDetail {
 
 		}
 	}
-	return results
+	return results, nil
 }
 
 // containersMountingSource returns the names of every container (running or
@@ -133,16 +133,16 @@ type BasicContainerInfos struct {
 	Name string
 }
 
-func (s *System) GetDockerContainers() []BasicContainerInfos {
+func (s *System) GetDockerContainers() ([]BasicContainerInfos, error) {
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("docker client: %w", err)
 	}
 	defer apiClient.Close()
 
 	containers, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{All: true})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("list containers: %w", err)
 	}
 
 	basicContainers := make([]BasicContainerInfos, len(containers.Items))
@@ -159,7 +159,7 @@ func (s *System) GetDockerContainers() []BasicContainerInfos {
 
 	}
 
-	return basicContainers
+	return basicContainers, nil
 
 }
 
@@ -169,17 +169,17 @@ type ApplicationVolumes struct {
 	Volumes       []VolumeDetail
 }
 
-func GetDockerVolumesByContainers() []ApplicationVolumes {
+func GetDockerVolumesByContainers() ([]ApplicationVolumes, error) {
 
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("docker client: %w", err)
 	}
 	defer apiClient.Close()
 
 	containers, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{All: true})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("list containers: %w", err)
 	}
 
 	applications := make([]ApplicationVolumes, 0, len(containers.Items))
@@ -218,7 +218,7 @@ func GetDockerVolumesByContainers() []ApplicationVolumes {
 
 	}
 
-	return applications
+	return applications, nil
 
 }
 
@@ -342,13 +342,16 @@ func (v *VolumeDetail) GetVolumeSize() error {
 	return nil
 }
 
-func GetApplicationsDetails(drives []DriveInfo) []Application {
+func GetApplicationsDetails(drives []DriveInfo) ([]Application, error) {
 
 	sort.Slice(drives, func(i, j int) bool {
 		return len(drives[i].Mountpoint) > len(drives[j].Mountpoint)
 	})
 
-	containers := GetDockerVolumesByContainers()
+	containers, err := GetDockerVolumesByContainers()
+	if err != nil {
+		return nil, err
+	}
 
 	applications := make([]Application, len(containers))
 
@@ -403,6 +406,6 @@ func GetApplicationsDetails(drives []DriveInfo) []Application {
 
 	}
 
-	return applications
+	return applications, nil
 
 }

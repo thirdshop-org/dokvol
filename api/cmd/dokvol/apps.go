@@ -22,7 +22,10 @@ var appsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List applications with their Docker volumes",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		apps := system.GetDockerVolumesByContainers()
+		apps, err := system.GetDockerVolumesByContainers()
+		if err != nil {
+			return err
+		}
 
 		if appsJSON {
 			enc := json.NewEncoder(os.Stdout)

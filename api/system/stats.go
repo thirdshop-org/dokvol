@@ -79,7 +79,11 @@ func (c *StatsCollector) Collect() {
 }
 
 func (c *StatsCollector) collectVolumes(ctx context.Context, batchID int64) {
-	volumes := GetDockerVolumesByContainers()
+	volumes, err := GetDockerVolumesByContainers()
+	if err != nil {
+		log.Printf("stats collector: failed to list volumes: %s", err)
+		return
+	}
 
 	for _, app := range volumes {
 		for _, vol := range app.Volumes {
