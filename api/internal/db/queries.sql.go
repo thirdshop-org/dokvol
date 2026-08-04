@@ -328,7 +328,7 @@ func (q *Queries) CreateVolumeDrive(ctx context.Context, arg CreateVolumeDrivePa
 const createVolumeProgress = `-- name: CreateVolumeProgress :one
 INSERT INTO migration_volume_progress (job_id, volume_name, source_path, dest_path, dest_drive, step)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, created_at, updated_at
+RETURNING id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, backup_path, created_at, updated_at
 `
 
 type CreateVolumeProgressParams struct {
@@ -361,6 +361,7 @@ func (q *Queries) CreateVolumeProgress(ctx context.Context, arg CreateVolumeProg
 		&i.TotalBytes,
 		&i.TransferredBytes,
 		&i.ErrorMessage,
+		&i.BackupPath,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1098,6 +1099,39 @@ func (q *Queries) ListPreferences(ctx context.Context) ([]UserPreference, error)
 	return items, nil
 }
 
+const listRunningMigrationJobs = `-- name: ListRunningMigrationJobs :many
+SELECT id, app_name, status, created_at, updated_at FROM migration_job WHERE status = 'running'
+`
+
+func (q *Queries) ListRunningMigrationJobs(ctx context.Context) ([]MigrationJob, error) {
+	rows, err := q.db.QueryContext(ctx, listRunningMigrationJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationJob
+	for rows.Next() {
+		var i MigrationJob
+		if err := rows.Scan(
+			&i.ID,
+			&i.AppName,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStatsApplication = `-- name: ListStatsApplication :many
 SELECT
     s.captured_at,
@@ -1346,7 +1380,7 @@ func (q *Queries) ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, 
 }
 
 const listVolumeProgressByJob = `-- name: ListVolumeProgressByJob :many
-SELECT id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, created_at, updated_at FROM migration_volume_progress WHERE job_id = ? ORDER BY id
+SELECT id, job_id, volume_name, source_path, dest_path, dest_drive, step, total_bytes, transferred_bytes, error_message, backup_path, created_at, updated_at FROM migration_volume_progress WHERE job_id = ? ORDER BY id
 `
 
 func (q *Queries) ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error) {
@@ -1369,6 +1403,7 @@ func (q *Queries) ListVolumeProgressByJob(ctx context.Context, jobID string) ([]
 			&i.TotalBytes,
 			&i.TransferredBytes,
 			&i.ErrorMessage,
+			&i.BackupPath,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1419,6 +1454,20 @@ func (q *Queries) ListVolumes(ctx context.Context) ([]Volume, error) {
 	return items, nil
 }
 
+const markVolumeProgressInterrupted = `-- name: MarkVolumeProgressInterrupted :exec
+UPDATE migration_volume_progress SET step = 'interrupted', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type MarkVolumeProgressInterruptedParams struct {
+	ErrorMessage sql.NullString `json:"error_message"`
+	ID           int64          `json:"id"`
+}
+
+func (q *Queries) MarkVolumeProgressInterrupted(ctx context.Context, arg MarkVolumeProgressInterruptedParams) error {
+	_, err := q.db.ExecContext(ctx, markVolumeProgressInterrupted, arg.ErrorMessage, arg.ID)
+	return err
+}
+
 const updateMigrationJobStatus = `-- name: UpdateMigrationJobStatus :exec
 UPDATE migration_job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -1444,6 +1493,20 @@ type UpdateUserPasswordParams struct {
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const updateVolumeProgressBackupPath = `-- name: UpdateVolumeProgressBackupPath :exec
+UPDATE migration_volume_progress SET backup_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateVolumeProgressBackupPathParams struct {
+	BackupPath sql.NullString `json:"backup_path"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) UpdateVolumeProgressBackupPath(ctx context.Context, arg UpdateVolumeProgressBackupPathParams) error {
+	_, err := q.db.ExecContext(ctx, updateVolumeProgressBackupPath, arg.BackupPath, arg.ID)
 	return err
 }
 

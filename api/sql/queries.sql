@@ -88,6 +88,15 @@ UPDATE migration_volume_progress SET transferred_bytes = ?, total_bytes = ?, upd
 -- name: UpdateVolumeProgressError :exec
 UPDATE migration_volume_progress SET step = 'failed', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
+-- name: UpdateVolumeProgressBackupPath :exec
+UPDATE migration_volume_progress SET backup_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: MarkVolumeProgressInterrupted :exec
+UPDATE migration_volume_progress SET step = 'interrupted', error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: ListRunningMigrationJobs :many
+SELECT * FROM migration_job WHERE status = 'running';
+
 -- name: ListJobsWithProgress :many
 SELECT
     j.id AS job_id,

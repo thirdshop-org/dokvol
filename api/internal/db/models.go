@@ -57,6 +57,7 @@ type MigrationVolumeProgress struct {
 	TotalBytes       int64          `json:"total_bytes"`
 	TransferredBytes int64          `json:"transferred_bytes"`
 	ErrorMessage     sql.NullString `json:"error_message"`
+	BackupPath       sql.NullString `json:"backup_path"`
 	CreatedAt        sql.NullTime   `json:"created_at"`
 	UpdatedAt        sql.NullTime   `json:"updated_at"`
 }

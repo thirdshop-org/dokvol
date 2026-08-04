@@ -52,6 +52,7 @@ type Querier interface {
 	ListMigrationLogsByDrive(ctx context.Context, arg ListMigrationLogsByDriveParams) ([]MigrationLog, error)
 	ListMigrationLogsByStatus(ctx context.Context, arg ListMigrationLogsByStatusParams) ([]MigrationLog, error)
 	ListPreferences(ctx context.Context) ([]UserPreference, error)
+	ListRunningMigrationJobs(ctx context.Context) ([]MigrationJob, error)
 	ListStatsApplication(ctx context.Context, arg ListStatsApplicationParams) ([]ListStatsApplicationRow, error)
 	ListStatsDriveByMountpoint(ctx context.Context, arg ListStatsDriveByMountpointParams) ([]StatsDrive, error)
 	ListStatsVolumeByName(ctx context.Context, arg ListStatsVolumeByNameParams) ([]StatsVolume, error)
@@ -59,8 +60,10 @@ type Querier interface {
 	ListVolumeDrives(ctx context.Context) ([]ListVolumeDrivesRow, error)
 	ListVolumeProgressByJob(ctx context.Context, jobID string) ([]MigrationVolumeProgress, error)
 	ListVolumes(ctx context.Context) ([]Volume, error)
+	MarkVolumeProgressInterrupted(ctx context.Context, arg MarkVolumeProgressInterruptedParams) error
 	UpdateMigrationJobStatus(ctx context.Context, arg UpdateMigrationJobStatusParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpdateVolumeProgressBackupPath(ctx context.Context, arg UpdateVolumeProgressBackupPathParams) error
 	UpdateVolumeProgressBytes(ctx context.Context, arg UpdateVolumeProgressBytesParams) error
 	UpdateVolumeProgressError(ctx context.Context, arg UpdateVolumeProgressErrorParams) error
 	UpdateVolumeProgressStep(ctx context.Context, arg UpdateVolumeProgressStepParams) error

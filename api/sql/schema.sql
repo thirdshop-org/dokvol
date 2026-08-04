@@ -44,6 +44,7 @@ CREATE TABLE migration_volume_progress (
     total_bytes       INTEGER NOT NULL DEFAULT 0,
     transferred_bytes INTEGER NOT NULL DEFAULT 0,
     error_message     TEXT,
+    backup_path       TEXT,
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
