@@ -486,6 +486,7 @@
 						</Button>
 					</div>
 				</div>
+				<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead class="border-b text-muted-foreground">
 						<tr>
@@ -536,6 +537,7 @@
 						{/each}
 					</tbody>
 				</table>
+				</div>
 			</div>
 		{/each}
 		{:else if viewMode === 'bydrive'}
@@ -551,6 +553,7 @@
 						</h2>
 						<span class="text-xs text-muted-foreground">{$t('applications.volumeCount', { n: group.volumes.length })}</span>
 					</div>
+					<div class="overflow-x-auto">
 					<table class="w-full text-sm">
 						<thead class="border-b text-muted-foreground">
 							<tr>
@@ -579,6 +582,7 @@
 							{/each}
 						</tbody>
 					</table>
+					</div>
 				</div>
 			{/each}
 		{/if}

@@ -294,6 +294,7 @@
 		<!-- Volumes -->
 		<div class="rounded-lg border">
 			<div class="border-b bg-muted/30 px-4 py-2 font-semibold text-sm">{$t('volumes.title')}</div>
+			<div class="overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead class="border-b text-muted-foreground">
 					<tr>
@@ -350,6 +351,7 @@
 					{/each}
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- History -->
@@ -358,6 +360,7 @@
 			{#if historyEntries.length === 0}
 				<p class="px-4 py-6 text-sm text-muted-foreground text-center">{$t('history.empty')}</p>
 			{:else}
+				<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead class="border-b text-muted-foreground">
 						<tr>
@@ -371,7 +374,13 @@
 					</thead>
 					<tbody>
 						{#each historyEntries as entry (entry.id)}
-							<tr class="border-b last:border-0 hover:bg-muted/30 cursor-pointer" onclick={() => openHistoryDetail(entry.job_id)}>
+							<tr
+								class="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+								role="button"
+								tabindex={0}
+								onclick={() => openHistoryDetail(entry.job_id)}
+								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHistoryDetail(entry.job_id); } }}
+							>
 								<td class="px-4 py-2 text-xs text-muted-foreground">{formatDate(entry.created_at)}</td>
 								<td class="px-4 py-2">
 									<Badge class={entry.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'}>
@@ -386,6 +395,7 @@
 						{/each}
 					</tbody>
 				</table>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -407,6 +417,7 @@
 						{historyDetail.status === 'completed' ? $t('history.filters.completed') : $t('history.filters.failed')}
 					</Badge>
 				</div>
+				<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead class="border-b text-muted-foreground">
 						<tr>
@@ -440,6 +451,7 @@
 						{/each}
 					</tbody>
 				</table>
+				</div>
 			</div>
 		{/if}
 		<Dialog.Footer>

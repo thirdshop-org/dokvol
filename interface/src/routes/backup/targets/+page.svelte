@@ -88,7 +88,7 @@
 			</a>
 		</div>
 	{:else}
-		<div class="rounded-lg border">
+		<div class="rounded-lg border overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead class="border-b bg-muted/50 text-muted-foreground">
 					<tr>
