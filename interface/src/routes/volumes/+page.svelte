@@ -8,7 +8,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import FileExplorer from '$lib/components/file-explorer.svelte';
-	import { LoaderCircle, Trash2, ArrowUpFromLine, Search } from '@lucide/svelte';
+	import { LoaderCircle, Trash2, ArrowUpFromLine, Search, Undo2 } from '@lucide/svelte';
 
 	type VolumeRow = VolumeDetail & { checked: boolean };
 
@@ -163,9 +163,17 @@
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-bold tracking-tight">{$t('volumes.title')}</h1>
-		<p class="text-muted-foreground">{$t('volumes.description')}</p>
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight">{$t('volumes.title')}</h1>
+			<p class="text-muted-foreground">{$t('volumes.description')}</p>
+		</div>
+		<a href="/volumes/trash">
+			<Button variant="outline" size="sm">
+				<Undo2 class="size-3.5" />
+				{$t('trash.title')}
+			</Button>
+		</a>
 	</div>
 
 	{#if loading}

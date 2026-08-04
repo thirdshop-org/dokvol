@@ -16,6 +16,7 @@ import LogOut from '@lucide/svelte/icons/log-out';
 import UserIcon from '@lucide/svelte/icons/user';
 import UsersIcon from '@lucide/svelte/icons/users';
 import Database from '@lucide/svelte/icons/database';
+import Trash2 from '@lucide/svelte/icons/trash-2';
 	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
@@ -26,6 +27,7 @@ import Database from '@lucide/svelte/icons/database';
 		{ href: '/', label: 'nav.home', icon: Home },
 		{ href: '/drives', label: 'nav.drives', icon: HardDrive },
 		{ href: '/applications', label: 'nav.applications', icon: Box },
+		{ href: '/volumes/trash', label: 'nav.trash', icon: Trash2 },
 		{ href: '/backup', label: 'nav.backup', icon: Database },
 		{ href: '/history', label: 'nav.history', icon: HistoryIcon },
 		{ href: '/stats', label: 'nav.stats', icon: AreaChart },

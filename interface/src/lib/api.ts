@@ -1,4 +1,4 @@
-import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse, LoginRequest, CreateUserRequest, AuthResponse, RefreshRequest, RefreshResponse, ChangePasswordRequest, User, BackupTarget, BackupJob, BackupVolumeProgress, BackupSchedule, BackupListEntry } from '$lib/types';
+import type { DriveInfo, VolumeDetail, ApplicationVolumes, HealthCheckResponse, InitDriveResponse, MigrateVolumeRequest, StartMigrationResponse, MigrationJob, APIError, SystemHealthResponse, StatsVolume, StatsDrive, StatsApplication, DeleteVolumeRequest, DeleteVolumeResponse, PreferencesResponse, HistoryListResponse, HistoryJobDetail, MigrationStats, VersionResponse, BrowseRequest, BrowseResponse, ReadFileRequest, ReadFileResponse, LoginRequest, CreateUserRequest, AuthResponse, RefreshRequest, RefreshResponse, ChangePasswordRequest, User, BackupTarget, BackupJob, BackupVolumeProgress, BackupSchedule, BackupListEntry, TrashEntry } from '$lib/types';
 import { auth } from '$lib/stores/auth.svelte';
 
 const BASE = '/api';
@@ -190,6 +190,18 @@ export function readVolumeFile(req: ReadFileRequest): Promise<ReadFileResponse> 
 		method: 'POST',
 		body: JSON.stringify(req),
 	});
+}
+
+export function getTrash(signal?: AbortSignal): Promise<TrashEntry[]> {
+	return fetchJson<TrashEntry[]>('/volumes/trash', { signal });
+}
+
+export function restoreTrashEntry(id: number): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/volumes/trash/${id}/restore`, { method: 'POST' });
+}
+
+export function purgeTrashEntry(id: number): Promise<{ status: string }> {
+	return fetchJson<{ status: string }>(`/volumes/trash/${id}`, { method: 'DELETE' });
 }
 
 export function rescanHistory(): Promise<{ success: boolean }> {

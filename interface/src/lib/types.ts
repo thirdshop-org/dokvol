@@ -293,3 +293,15 @@ export interface BackupListEntry {
     size: number;
     modified_at: string;
 }
+
+export interface TrashEntry {
+	id: number;
+	job_id: string;
+	app_name: string;
+	volume_name: string;
+	source_path: string;
+	dest_path: string;
+	dest_drive: string;
+	step: string;
+	backup_path: string;
+}
