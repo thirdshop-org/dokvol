@@ -39,6 +39,15 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
+	// Vérifier l'espace disponible cumulé par disque de destination avant de
+	// commencer quoi que ce soit : plusieurs volumes migrant vers le même
+	// disque doivent être comptés ensemble, pas juste chacun contre le total
+	// disponible (trois volumes de 60 Go passeraient tous individuellement
+	// contre un disque de 100 Go).
+	if err := s.checkDiskSpace(volumes); err != nil {
+		return fmt.Errorf("disk space: %w", err)
+	}
+
 	// 3. Migrer
 	for _, vol := range *volumes {
 		if !vol.VolumeDetail.IsMigratable {
@@ -562,6 +571,12 @@ func (s *System) getDriveForPath(path string) *DriveInfo {
 	return bestMatch
 }
 
+// diskSpaceMarginFactor requires destination drives to have some headroom
+// beyond the raw bytes needed, to account for filesystem overhead
+// (block/cluster rounding, metadata) and other things landing on the same
+// drive between the check and the actual rsync.
+const diskSpaceMarginFactor = 1.10
+
 // Vérifier l'espace disponible sur les drives de destination
 func (s *System) checkDiskSpace(volumes *[]ApplicationVolumeOptions) error {
 
@@ -586,14 +601,16 @@ func (s *System) checkDiskSpace(volumes *[]ApplicationVolumeOptions) error {
 			return fmt.Errorf("failed to get available space on '%s': %w", mountpoint, err)
 		}
 
-		if needed > available {
+		neededWithMargin := int64(float64(needed) * diskSpaceMarginFactor)
+		if neededWithMargin > available {
 			return NewAPIError(
 				ErrMigrationDiskSpace,
 				fmt.Sprintf("not enough space on '%s'", mountpoint),
 				map[string]any{
-					"drive":           mountpoint,
-					"needed_bytes":    needed,
-					"available_bytes": available,
+					"drive":              mountpoint,
+					"needed_bytes":       needed,
+					"needed_with_margin": neededWithMargin,
+					"available_bytes":    available,
 				},
 			)
 		}
