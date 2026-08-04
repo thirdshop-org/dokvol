@@ -10,6 +10,7 @@
 	import FileExplorer from '$lib/components/file-explorer.svelte';
 	import { LoaderCircle, Trash2, ArrowUpFromLine, Search, Undo2 } from '@lucide/svelte';
 	import { errorMessage } from '$lib/utils/errors';
+	import DriveSelect from '$lib/components/drive-select.svelte';
 
 	type VolumeRow = VolumeDetail & { checked: boolean };
 
@@ -250,18 +251,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4">
-			<select
-				class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-				bind:value={selectedDrive}
-				disabled={migrating}
-			>
-				<option value="">{$t('volumes.bulk.selectDrive')}</option>
-				{#each drives as drive (drive.mountpoint)}
-					<option value={drive.mountpoint}>
-						{drive.device} — {drive.mountpoint} ({drive.free_gb} Go libre)
-					</option>
-				{/each}
-			</select>
+			<DriveSelect {drives} bind:value={selectedDrive} placeholder={$t('volumes.bulk.selectDrive')} disabled={migrating} />
 
 			{#if bulkMessage}
 				<p class="text-sm" class:text-green-600={bulkSuccess} class:text-destructive={!bulkSuccess}>

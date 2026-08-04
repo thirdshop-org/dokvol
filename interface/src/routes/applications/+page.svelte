@@ -13,6 +13,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
 	import { formatBytes } from '$lib/utils/format';
+	import DriveSelect from '$lib/components/drive-select.svelte';
 
 	let apps = $state<ApplicationVolumes[]>([]);
 	let loading = $state(true);
@@ -726,19 +727,13 @@
 				{#if mode === 'same'}
 					<div class="flex items-center gap-3">
 						<span class="text-sm text-muted-foreground shrink-0">{$t('applications.migration.allVolumes')}</span>
-						<select
-							class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						<DriveSelect
+							{drives}
 							value={sameDest}
-							onchange={(e) => handleSameDestChange((e.target as HTMLSelectElement).value)}
+							onchange={handleSameDestChange}
+							placeholder={$t('applications.migration.selectDrive')}
 							disabled={migrating}
-						>
-							<option value="" disabled>{$t('applications.migration.selectDrive')}</option>
-							{#each drives as drive (drive.mountpoint)}
-								<option value={drive.mountpoint}>
-									{drive.device} — {drive.mountpoint} ({drive.free_gb} Go libre)
-								</option>
-							{/each}
-						</select>
+						/>
 					</div>
 				{/if}
 
@@ -768,17 +763,15 @@
 									</Table.Cell>
 									<Table.Cell class="hidden sm:table-cell font-mono text-xs text-muted-foreground max-w-48 truncate">{vol.source}</Table.Cell>
 									<Table.Cell>
-										<select
-											class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-xs shadow-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<DriveSelect
+											{drives}
 											value={vol.destination}
-											onchange={(e) => handleRowDestChange(i, (e.target as HTMLSelectElement).value)}
+											onchange={(mountpoint) => handleRowDestChange(i, mountpoint)}
+											placeholder={$t('applications.migration.select')}
 											disabled={migrating || !vol.IsMigratable}
-										>
-											<option value="" disabled>{$t('applications.migration.select')}</option>
-											{#each drives as drive (drive.mountpoint)}
-												<option value={drive.mountpoint}>{drive.device} — {drive.mountpoint}</option>
-											{/each}
-										</select>
+											showFreeSpace={false}
+											compact
+										/>
 									</Table.Cell>
 								</Table.Row>
 							{/each}
