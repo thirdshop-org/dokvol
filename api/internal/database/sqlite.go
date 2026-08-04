@@ -44,6 +44,12 @@ func Init() *Database {
 		panic(err)
 	}
 
+	// Reconcile any migration job left "running" by a process that died
+	// mid-migration, before anything else touches the database.
+	if err := system.ReconcileMigrationJobs(queries); err != nil {
+		log.Printf("warning: migration reconciliation failed: %s", err)
+	}
+
 	// Scan history files on all initialized drives
 	if err := system.ScanDriveHistory(queries, system.GetDrives()); err != nil {
 		log.Printf("warning: history scan failed: %s", err)
