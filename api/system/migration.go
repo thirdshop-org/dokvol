@@ -29,7 +29,12 @@ const (
 )
 
 const (
-	StepPending   = "pending"
+	StepPending = "pending"
+	// StepPresync is the first of two rsync passes: it runs while the
+	// container is still up, so the bulk of the transfer happens with zero
+	// downtime. Only a delta is left to catch up during StepSyncing, after
+	// the container actually stops.
+	StepPresync   = "presync"
 	StepStopping  = "stopping"
 	StepSyncing   = "syncing"
 	StepVerifying = "verifying"

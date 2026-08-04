@@ -106,6 +106,16 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	}
 	defer lock.Unlock()
 
+	// PRESYNC — Première passe rsync pendant que le conteneur tourne
+	// encore : la quasi-totalité des données est transférée à indisponibilité
+	// nulle, et il ne reste qu'un delta à rattraper une fois arrêté. Best
+	// effort : si elle échoue, on continue quand même — la passe delta après
+	// l'arrêt (ci-dessous) refera le travail en entier de toute façon.
+	presyncTotal, _ := dirSize(sourcePath)
+	if err := s.rsyncWithProgress(opts, volName, StepPresync, sourcePath, destPath, presyncTotal); err != nil {
+		log.Printf("migration: presync for '%s' failed, falling back to a full sync after stop: %s", volName, err)
+	}
+
 	// 1. STOP — Arrêter tous les conteneurs qui montent ce volume. Un même
 	// volume peut être partagé par plusieurs conteneurs (ou un projet
 	// compose) : n'arrêter que l'application migrée laisserait les autres
@@ -128,37 +138,13 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 		stopped = append(stopped, name)
 	}
 
-	// 2. SYNC — Copier avec rsync
+	// 2. SYNC — Passe delta maintenant que les writers sont arrêtés : rsync
+	// ne retransfère que ce qui a changé depuis la presync (ou, si celle-ci a
+	// échoué ou n'a jamais eu l'occasion de tourner, la totalité).
 	totalBytes, _ := dirSize(sourcePath)
-	reportProgress(opts, volName, StepSyncing, 0, totalBytes)
-
-	// Goroutine de progression pendant rsync
-	stopProgress := make(chan struct{})
-	progressDone := make(chan struct{})
-	go func() {
-		defer close(progressDone)
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopProgress:
-				return
-			case <-ticker.C:
-				transferred, err := dirSize(destPath)
-				if err == nil {
-					reportProgress(opts, volName, StepSyncing, transferred, totalBytes)
-				}
-			}
-		}
-	}()
-
-	rsyncErr := s.rsync(sourcePath, destPath)
-	close(stopProgress)
-	<-progressDone
-
-	if rsyncErr != nil {
+	if err := s.rsyncWithProgress(opts, volName, StepSyncing, sourcePath, destPath, totalBytes); err != nil {
 		s.startContainers(stopped) // rollback
-		return fmt.Errorf("sync failed: %w", rsyncErr)
+		return fmt.Errorf("sync failed: %w", err)
 	}
 
 	totalAfterSync, _ := dirSize(destPath)
@@ -211,6 +197,39 @@ func reportProgress(opts MoveStorageOptions, volumeName, step string, transferre
 	if opts.OnProgress != nil {
 		opts.OnProgress(volumeName, step, transferred, total)
 	}
+}
+
+// rsyncWithProgress runs rsync(sourcePath, destPath) under the given step
+// label, polling destPath's size every 2s to report progress against
+// totalBytes. Used for both the live presync pass and the post-stop delta
+// pass — the only difference between them is which step label the caller
+// reports under and whether the writer(s) are still running.
+func (s *System) rsyncWithProgress(opts MoveStorageOptions, volumeName, step, sourcePath, destPath string, totalBytes int64) error {
+	reportProgress(opts, volumeName, step, 0, totalBytes)
+
+	stopProgress := make(chan struct{})
+	progressDone := make(chan struct{})
+	go func() {
+		defer close(progressDone)
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopProgress:
+				return
+			case <-ticker.C:
+				transferred, err := dirSize(destPath)
+				if err == nil {
+					reportProgress(opts, volumeName, step, transferred, totalBytes)
+				}
+			}
+		}
+	}()
+
+	err := s.rsync(sourcePath, destPath)
+	close(stopProgress)
+	<-progressDone
+	return err
 }
 
 func (s *System) resolveVolumesAndApp(opts MoveStorageOptions) (*Application, *[]ApplicationVolumeOptions, error) {
