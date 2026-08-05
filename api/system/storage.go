@@ -46,15 +46,6 @@ func (s *System) MoveApplicationStorage(opts MoveStorageOptions) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	// Vérifier l'espace disponible cumulé par disque de destination avant de
-	// commencer quoi que ce soit : plusieurs volumes migrant vers le même
-	// disque doivent être comptés ensemble, pas juste chacun contre le total
-	// disponible (trois volumes de 60 Go passeraient tous individuellement
-	// contre un disque de 100 Go).
-	if err := s.checkDiskSpace(volumes); err != nil {
-		return fmt.Errorf("disk space: %w", err)
-	}
-
 	// 3. Migrer
 	for _, vol := range *volumes {
 		if !vol.VolumeDetail.IsMigratable {
@@ -77,7 +68,15 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	// Dossier de destination dans .dokvol du drive cible
 	destPath := filepath.Join(destDrive.Mountpoint, DOKVOL_FOLDER, app.Name, volName)
 
-	// Vérifier l'espace disponible par volume avant de migrer
+	// Vérifier l'espace disponible avant de migrer. Checked here rather than
+	// upfront for the whole job so that a volume going to a drive with plenty
+	// of room isn't blocked by a sibling volume whose destination drive is
+	// too small — each volume's fate is decided independently. Since volumes
+	// sharing the same destination drive are migrated one at a time and this
+	// reads the drive's *live* free space, an earlier volume's copy is
+	// already reflected here, so several volumes landing on the same drive
+	// are still correctly checked cumulatively rather than each individually
+	// against the drive's original total.
 	size, err := dirSize(sourcePath)
 	if err != nil {
 		return fmt.Errorf("source size: %w", err)
@@ -86,7 +85,7 @@ func (s *System) migrateVolume(app Application, vol ApplicationVolumeOptions, op
 	if err != nil {
 		return fmt.Errorf("disk space: %w", err)
 	}
-	if size > available {
+	if int64(float64(size)*diskSpaceMarginFactor) > available {
 		return NewAPIError(
 			ErrMigrationDiskSpace,
 			fmt.Sprintf("not enough space on '%s'", destDrive.Mountpoint),
@@ -613,53 +612,11 @@ func (s *System) getDriveForPath(path string) *DriveInfo {
 	return bestMatch
 }
 
-// diskSpaceMarginFactor requires destination drives to have some headroom
+// diskSpaceMarginFactor requires a destination drive to have some headroom
 // beyond the raw bytes needed, to account for filesystem overhead
 // (block/cluster rounding, metadata) and other things landing on the same
 // drive between the check and the actual rsync.
 const diskSpaceMarginFactor = 1.10
-
-// Vérifier l'espace disponible sur les drives de destination
-func (s *System) checkDiskSpace(volumes *[]ApplicationVolumeOptions) error {
-
-	// Calculer l'espace nécessaire par drive
-	spaceNeeded := make(map[string]int64) // mountpoint → bytes
-
-	for _, vol := range *volumes {
-		if !vol.VolumeDetail.IsMigratable {
-			continue
-		}
-		size, err := dirSize(vol.VolumeDetail.Source)
-		if err != nil {
-			return fmt.Errorf("failed to get size of '%s': %w", vol.VolumeDetail.Source, err)
-		}
-		spaceNeeded[vol.DestinationDrive.Mountpoint] += size
-	}
-
-	// Vérifier pour chaque drive
-	for mountpoint, needed := range spaceNeeded {
-		available, err := availableDiskSpace(mountpoint)
-		if err != nil {
-			return fmt.Errorf("failed to get available space on '%s': %w", mountpoint, err)
-		}
-
-		neededWithMargin := int64(float64(needed) * diskSpaceMarginFactor)
-		if neededWithMargin > available {
-			return NewAPIError(
-				ErrMigrationDiskSpace,
-				fmt.Sprintf("not enough space on '%s'", mountpoint),
-				map[string]any{
-					"drive":              mountpoint,
-					"needed_bytes":       needed,
-					"needed_with_margin": neededWithMargin,
-					"available_bytes":    available,
-				},
-			)
-		}
-	}
-
-	return nil
-}
 
 func (s *System) rsync(sourcePath, destPath string) error {
 

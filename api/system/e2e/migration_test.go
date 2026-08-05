@@ -344,7 +344,11 @@ func TestE2E_ErrorHandling(t *testing.T) {
 		if err != nil {
 			t.Fatalf("StartJob: %v", err)
 		}
-		job := testutil.PollJob(t, mm, jobID, 30*time.Second)
+		// volA's destination has plenty of room, so unlike the other
+		// subtests here it actually runs a full migration (including the
+		// container's ~30s stop grace period) before volB's own check fails
+		// — 30s isn't enough margin for that, so this one gets more.
+		job := testutil.PollJob(t, mm, jobID, 90*time.Second)
 		if job.Status != system.JobFailed {
 			t.Fatalf("expected job failed, got %s", job.Status)
 		}

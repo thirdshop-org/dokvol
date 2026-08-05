@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { DriveInfo } from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	let {
 		drives,
@@ -38,7 +39,7 @@
 	<option value="" disabled>{placeholder}</option>
 	{#each drives as drive (drive.mountpoint)}
 		<option value={drive.mountpoint}>
-			{drive.device} — {drive.mountpoint}{showFreeSpace ? ` (${drive.free_gb} Go libre)` : ''}
+			{drive.device} — {drive.mountpoint}{showFreeSpace ? ` ${$t('driveSelect.freeSpace', { gb: drive.free_gb })}` : ''}
 		</option>
 	{/each}
 </select>

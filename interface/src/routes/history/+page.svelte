@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getHistory, getHistoryJob, rescanHistory, getHistoryAppNames, ApiError } from '$lib/api';
+	import { getHistory, getHistoryJob, rescanHistory, getHistoryAppNames } from '$lib/api';
 	import { t } from '$lib/i18n';
+	import { errorMessage } from '$lib/utils/errors';
 	import type { MigrationLogEntry, HistoryJobDetail } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -66,7 +67,7 @@
 			entries = resp.entries;
 			total = resp.total;
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : 'Failed to load history';
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -273,16 +274,16 @@
 						</div>
 						<div class="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
 							<div>
-								<span class="block font-medium text-foreground">Source</span>
+								<span class="block font-medium text-foreground">{$t('history.columns.source')}</span>
 								<span class="truncate block" title={vol.source_path}>{vol.source_path}</span>
 								{#if vol.source_drive}
-									<span class="block">Drive: {vol.source_drive}</span>
+									<span class="block">{$t('history.details.drive')} {vol.source_drive}</span>
 								{/if}
 							</div>
 							<div>
-								<span class="block font-medium text-foreground">Destination</span>
+								<span class="block font-medium text-foreground">{$t('history.columns.destination')}</span>
 								<span class="truncate block" title={vol.dest_path}>{vol.dest_path}</span>
-								<span class="block">Drive: {vol.dest_drive}</span>
+								<span class="block">{$t('history.details.drive')} {vol.dest_drive}</span>
 							</div>
 						</div>
 						<div class="flex gap-4 mt-2 text-xs text-muted-foreground">

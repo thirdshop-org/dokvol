@@ -491,11 +491,11 @@
 				<table class="w-full text-sm">
 					<thead class="border-b text-muted-foreground">
 						<tr>
-							<th class="px-4 py-2 text-left font-medium">Type</th>
-							<th class="px-4 py-2 text-left font-medium">Size</th>
-							<th class="px-4 py-2 text-left font-medium">Source</th>
-							<th class="px-4 py-2 text-left font-medium">Drive</th>
-							<th class="px-4 py-2 text-left font-medium">Destination</th>
+							<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.type')}</th>
+							<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.size')}</th>
+							<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.source')}</th>
+							<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.drive')}</th>
+							<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.destination')}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -558,11 +558,11 @@
 					<table class="w-full text-sm">
 						<thead class="border-b text-muted-foreground">
 							<tr>
-								<th class="px-4 py-2 text-left font-medium">App</th>
-								<th class="px-4 py-2 text-left font-medium">Type</th>
-								<th class="px-4 py-2 text-left font-medium">Size</th>
-								<th class="px-4 py-2 text-left font-medium">Source</th>
-								<th class="px-4 py-2 text-left font-medium">Destination</th>
+								<th class="px-4 py-2 text-left font-medium">{$t('applications.table.app')}</th>
+								<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.type')}</th>
+								<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.size')}</th>
+								<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.source')}</th>
+								<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.destination')}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -744,8 +744,8 @@
 								<Table.Head class="w-10">
 									<Checkbox.Root checked={allChecked()} onclick={toggleAll} disabled={migrating} />
 								</Table.Head>
-								<Table.Head>Volume</Table.Head>
-								<Table.Head class="hidden sm:table-cell">Source</Table.Head>
+								<Table.Head>{$t('applications.migration.volumeColumn')}</Table.Head>
+								<Table.Head class="hidden sm:table-cell">{$t('volumes.table.source')}</Table.Head>
 								<Table.Head>{$t('applications.migration.select')}</Table.Head>
 							</Table.Row>
 						</Table.Header>

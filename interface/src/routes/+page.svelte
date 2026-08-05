@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n';
 	import { getDrives, getVolumes, getApplications, getSystemHealth } from '$lib/api';
-	import { ApiError } from '$lib/api';
+	import { errorMessage } from '$lib/utils/errors';
 	import { HardDrive, Layers, Box, Stethoscope, Check, X } from '@lucide/svelte';
 	import type { SystemHealthResponse } from '$lib/types';
 
@@ -20,9 +20,7 @@
 				getVolumes(),
 				getApplications(),
 				getSystemHealth().catch((e: unknown) => {
-					if (e instanceof ApiError) {
-						healthError = e.message;
-					}
+					healthError = errorMessage(e);
 					return null;
 				}),
 			]);

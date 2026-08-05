@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getDrives, checkDriveHealth, initDrive } from '$lib/api';
 	import { t } from '$lib/i18n';
+	import { errorMessage } from '$lib/utils/errors';
 	import type { DriveInfo } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoaderCircle } from '@lucide/svelte';
@@ -18,7 +19,7 @@
 		try {
 			drives = await getDrives();
 		} catch (e) {
-			error = e instanceof Error ? e.message : $t('drives.error.unknown');
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -96,8 +97,8 @@
 							<td class="px-4 py-3 font-mono text-xs">{drive.device}</td>
 							<td class="px-4 py-3 font-mono text-xs">{drive.mountpoint}</td>
 							<td class="px-4 py-3">{drive.fstype}</td>
-							<td class="px-4 py-3 text-right">{drive.total_gb} Go</td>
-							<td class="px-4 py-3 text-right">{drive.free_gb} Go</td>
+							<td class="px-4 py-3 text-right">{$t('drives.gb', { gb: drive.total_gb })}</td>
+							<td class="px-4 py-3 text-right">{$t('drives.gb', { gb: drive.free_gb })}</td>
 							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-2">
 									<div class="h-2 w-20 overflow-hidden rounded-full bg-muted">

@@ -3,6 +3,7 @@
 	import { browseVolume, readVolumeFile } from '$lib/api';
 	import type { FileEntry } from '$lib/types';
 	import { t } from '$lib/i18n';
+	import { errorMessage } from '$lib/utils/errors';
 	import Folder from '@lucide/svelte/icons/folder';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -61,7 +62,7 @@
 			const res = await browseVolume({ container, path });
 			entries = res.entries;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur inconnue';
+			error = errorMessage(e);
 			entries = [];
 		} finally {
 			loading = false;
@@ -84,7 +85,7 @@
 				previewTruncated = res.truncated;
 			}
 		} catch (e) {
-			previewError = e instanceof Error ? e.message : 'Erreur inconnue';
+			previewError = errorMessage(e);
 		} finally {
 			previewLoading = false;
 		}

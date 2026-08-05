@@ -7,6 +7,9 @@ const fr = {
 		next: "Suivant",
 		close: "Fermer",
 	},
+	driveSelect: {
+		freeSpace: "({{gb}} Go libre)",
+	},
 	migration: {
 		indicator: {
 			aria: "{{n}} migration(s) en cours",
@@ -46,9 +49,7 @@ const fr = {
 		description: "Périphériques de stockage disponibles pour Docker.",
 		checkHealth: "Vérifier l'état DokVol",
 		loading: "Chargement…",
-		error: {
-			unknown: "Erreur inconnue",
-		},
+		gb: "{{gb}} Go",
 		table: {
 			device: "Périphérique",
 			mountpoint: "Point de montage",
@@ -71,6 +72,8 @@ const fr = {
 		table: {
 			container: "Conteneur",
 			type: "Type",
+			size: "Taille",
+			drive: "Disque",
 			source: "Source",
 			destination: "Destination",
 		},
@@ -142,6 +145,9 @@ const fr = {
 		loading: "Chargement…",
 		search: "Rechercher…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		table: {
+			app: "App",
+		},
 		viewModes: {
 			normal: "Normal",
 			byDrive: "Par disque",
@@ -172,6 +178,7 @@ const fr = {
 			allVolumes: "Tous les volumes →",
 			selectDrive: "Choisir un disque…",
 			select: "Choisir…",
+			volumeColumn: "Volume",
 			success: "Migration réussie !",
 			cancel: "Annuler",
 			migrate: "Migrer",
@@ -207,6 +214,8 @@ const fr = {
 		details: {
 			title: "Détail de la migration",
 			noInfo: "Aucune information supplémentaire.",
+			jobId: "ID du job :",
+			drive: "Disque :",
 		},
 		rescan: "Rescanner",
 		rescanSuccess: "Historique rescanné avec succès.",

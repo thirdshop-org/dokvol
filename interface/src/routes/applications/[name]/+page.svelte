@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { getApplications, getMigrationStatus, getActiveMigrations, getHistory, getHistoryJob, getStatsVolume, stopApplication, startApplication, restartApplication, ApiError } from '$lib/api';
+	import { getApplications, getMigrationStatus, getActiveMigrations, getHistory, getHistoryJob, getStatsVolume, stopApplication, startApplication, restartApplication } from '$lib/api';
 	import { t } from '$lib/i18n';
+	import { errorMessage } from '$lib/utils/errors';
 	import type { ApplicationVolumes, VolumeDetail, MigrationJob, MigrationLogEntry, HistoryJobDetail, StatsVolume } from '$lib/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -114,7 +115,7 @@
 			const hist = await getHistory({ app: fullAppName, limit: 50 });
 			historyEntries = hist.entries;
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Unknown error');
+			error = errorMessage(e);
 		} finally {
 			loading = false;
 		}
@@ -299,9 +300,9 @@
 				<thead class="border-b text-muted-foreground">
 					<tr>
 						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.type')}</th>
-						<th class="px-4 py-2 text-left font-medium">Size</th>
+						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.size')}</th>
 						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.source')}</th>
-						<th class="px-4 py-2 text-left font-medium">Drive</th>
+						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.drive')}</th>
 						<th class="px-4 py-2 text-left font-medium">{$t('volumes.table.destination')}</th>
 						<th class="px-4 py-2 text-center font-medium">{$t('fileExplorer.browse')}</th>
 					</tr>
@@ -412,7 +413,7 @@
 		{:else if historyDetail}
 			<div class="space-y-3 text-sm">
 				<div class="flex items-center gap-4">
-					<p><span class="text-muted-foreground">Job ID:</span> <span class="font-mono text-xs">{historyDetail.job_id}</span></p>
+					<p><span class="text-muted-foreground">{$t('history.details.jobId')}</span> <span class="font-mono text-xs">{historyDetail.job_id}</span></p>
 					<Badge class={historyDetail.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'}>
 						{historyDetail.status === 'completed' ? $t('history.filters.completed') : $t('history.filters.failed')}
 					</Badge>

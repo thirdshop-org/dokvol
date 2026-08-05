@@ -7,6 +7,9 @@ const en = {
 		next: "Next",
 		close: "Close",
 	},
+	driveSelect: {
+		freeSpace: "({{gb}} GB free)",
+	},
 	migration: {
 		indicator: {
 			aria: "{{n}} migration(s) in progress",
@@ -46,9 +49,7 @@ const en = {
 		description: "Storage devices available for Docker.",
 		checkHealth: "Check DokVol health",
 		loading: "Loading…",
-		error: {
-			unknown: "Unknown error",
-		},
+		gb: "{{gb}} GB",
 		table: {
 			device: "Device",
 			mountpoint: "Mount point",
@@ -71,6 +72,8 @@ const en = {
 		table: {
 			container: "Container",
 			type: "Type",
+			size: "Size",
+			drive: "Drive",
 			source: "Source",
 			destination: "Destination",
 		},
@@ -142,6 +145,9 @@ const en = {
 		loading: "Loading…",
 		search: "Search…",
 		volumeCount: "{{n}} volume | {{n}} volumes",
+		table: {
+			app: "App",
+		},
 		viewModes: {
 			normal: "Normal",
 			byDrive: "By drive",
@@ -172,6 +178,7 @@ const en = {
 			allVolumes: "All volumes →",
 			selectDrive: "Choose a drive…",
 			select: "Choose…",
+			volumeColumn: "Volume",
 			success: "Migration successful!",
 			cancel: "Cancel",
 			migrate: "Migrate",
@@ -207,6 +214,8 @@ const en = {
 		details: {
 			title: "Migration details",
 			noInfo: "No additional information.",
+			jobId: "Job ID:",
+			drive: "Drive:",
 		},
 		rescan: "Rescan",
 		rescanSuccess: "History rescanned successfully.",

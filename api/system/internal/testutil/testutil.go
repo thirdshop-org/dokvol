@@ -137,6 +137,14 @@ func WriteData(t *testing.T, cli *client.Client, ctr, path string, mb int) {
 	})
 }
 
+// loopMountRetries/loopMountRetryDelay absorb transient "failed to set up
+// loop device" errors: loop devices are a single, un-namespaced host-kernel
+// resource pool (8 by default), shared by every container on the host — a
+// sibling test (or, on shared CI infra, an entirely unrelated job) can hold
+// one for a few seconds right as this one asks for a free slot.
+const loopMountRetries = 5
+const loopMountRetryDelay = 2 * time.Second
+
 func CreateLoopDrive(t *testing.T, sizeMB int) string {
 	t.Helper()
 	img := filepath.Join(t.TempDir(), "disk.img")
@@ -145,9 +153,19 @@ func CreateLoopDrive(t *testing.T, sizeMB int) string {
 	RunOrFatal(t, "mkfs.ext4", "-F", img)
 	MustMkdir(t, mnt)
 	_ = exec.Command("modprobe", "loop").Run()
-	RunOrFatal(t, "mount", "-o", "loop", img, mnt)
-	t.Cleanup(func() { RunOrFatal(t, "umount", mnt) })
-	return mnt
+
+	var lastErr error
+	for attempt := 1; attempt <= loopMountRetries; attempt++ {
+		out, err := exec.Command("mount", "-o", "loop", img, mnt).CombinedOutput()
+		if err == nil {
+			t.Cleanup(func() { RunOrFatal(t, "umount", mnt) })
+			return mnt
+		}
+		lastErr = fmt.Errorf("mount -o loop %s %s: %w\n%s", img, mnt, err, out)
+		time.Sleep(loopMountRetryDelay)
+	}
+	t.Fatalf("%v (gave up after %d attempts)", lastErr, loopMountRetries)
+	return ""
 }
 
 func RunOrFatal(t *testing.T, name string, args ...string) {

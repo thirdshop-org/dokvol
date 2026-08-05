@@ -15,6 +15,7 @@
 	let volumes = $state<BackupVolumeProgress[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let retryMessage = $state<string | null>(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 	async function load() {
@@ -108,13 +109,17 @@
 					</a>
 				{/if}
 				{#if status === 'failed'}
-					<Button variant="outline" onclick={() => alert($t('backup.jobDetail.retryNotImplemented'))}>
+					<Button variant="outline" onclick={() => (retryMessage = $t('backup.jobDetail.retryNotImplemented'))}>
 						<RotateCcw class="size-4" />
 						{$t('backup.jobDetail.retry')}
 					</Button>
 				{/if}
 			</div>
 		</div>
+
+		{#if retryMessage}
+			<p class="text-sm text-muted-foreground">{retryMessage}</p>
+		{/if}
 
 		<div class="rounded-lg border overflow-x-auto">
 			<table class="w-full text-sm">
